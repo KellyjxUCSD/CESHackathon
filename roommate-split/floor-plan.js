@@ -3,6 +3,7 @@ const assetURL = path => new URL(path, import.meta.url).href;
 const roomLabel = /\b((?:(?:primary|master|guest|secondary)\s+)?bed\s*(?:room|rm)|living\s*(?:[/&]\s*dining(?:\s+room)?|room|area)|great\s+room|studio|den|loft)\b(?:\s*#?\s*(\d{1,2})(?![\d.'′’″":-]|\s*(?:[x×]|ft\b|feet\b|m\b)))?/gi;
 const measurement = String.raw`(\d+(?:\.\d+)?)\s*(?:(?:['′’]|ft\b|feet\b)\s*(?:(\d{1,2})\s*(?:["″”]|in\b))?|(m)\b)?`;
 const dimensionPair = new RegExp(String.raw`(?<![\w.])` + measurement + String.raw`\s*[x×]\s*` + measurement + String.raw`(?![\w.]|\s*["″”])`, 'gi');
+const singleMeasurement = new RegExp(String.raw`^\s*` + measurement + String.raw`\s*$`, 'i');
 
 export function plausiblePlanSize(length,width){
   const short=Math.min(length,width), long=Math.max(length,width);
@@ -19,10 +20,15 @@ function normalizePlanDimensions(text){
     .replace(/(["″”]\s*[x×]\s*)([1-4]\d)([0-9])(?=\s*$)/gi,'$1$2′$3″')
     .replace(/(\d+)\s*['′’]\s*[oO]\s*(?=["″”])/g,"$1′0")
     .replace(/(^|[^\d.])(\d{2})([0-9])\s*(?=["″”])/g,"$1$2′$3")
-    .replace(/(\d+)\s*['′’]\s*(\d{1,2})\s*(?=[x×]|$)/gi,'$1′$2″');
+    .replace(/(\d+)\s*['′’]\s*(\d{1,2})\s*(?=[x×]|$)/gi,'$1′$2″')
+    // OCR can drop every foot and inch mark. A three-digit room dimension such
+    // as 126 is much more likely to mean 12′6″ than 126 feet.
+    .replace(/\b([1-4]\d)([0-9])\s*([x×])\s*([1-4]\d)([0-9])\b/g,'$1′$2″ $3 $4′$5″')
+    .replace(/\b(\d{1,2})\s+(\d{1,2})(?=\s*[x×])/g,(_,feet,inches)=>Number(inches)<12?`${feet}′${inches}″`:`${feet} ${inches}`)
+    .replace(/([x×]\s*)(\d{1,2})\s+(\d{1,2})\b/g,(_,join,feet,inches)=>Number(inches)<12?`${join}${feet}′${inches}″`:`${join}${feet} ${inches}`);
 }
 export function planRooms(lines){
-  const labels=[], sizes=[];
+  const labels=[], sizes=[], singleDimensions=[];
   function position(line,start,length){
     if(!line.span) return line;
     return {...line,x:line.x+line.span*((start+length/2)/line.text.length-0.5)};
@@ -49,6 +55,13 @@ export function planRooms(lines){
       if(!sizes.some(other=>other.page===size.page&&other.precision>=size.precision&&Math.hypot(other.x-size.x,other.y-size.y)<0.025&&
         other.length===size.length&&other.width===size.width)) sizes.push(size);
     }
+    // Some plans print one dimension on each wall rather than a single pair.
+    // Keep unit-marked, stand-alone dimensions for a conservative nearby match.
+    const single=dimensionText.match(singleMeasurement);
+    if(single&&/['′’]|\b(?:ft|feet|m)\b/i.test(dimensionText)){
+      const value=Number(single[1])*(single[3]==='m'||single[4]==='m'?3.280839895:1)+Number(single[2]||0)/12;
+      if(value>=5&&value<=45) singleDimensions.push({...line,value:+value.toFixed(3)});
+    }
   }
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   function nearbyMeasurement(label){
@@ -73,6 +86,18 @@ export function planRooms(lines){
     distinct.push(label);
   }
   distinct.sort((a,b)=>a.page-b.page||a.y-b.y||a.x-b.x);
+  for(const label of distinct){
+    const nearby=singleDimensions.filter(size=>size.page===label.page&&distance(label,size)<=0.13)
+      .sort((a,b)=>distance(label,a)-distance(label,b));
+    if(nearby.length<2) continue;
+    const [first,second]=nearby;
+    if(!plausiblePlanSize(first.value,second.value)) continue;
+    // Do not combine wall labels that are just as close to another bedroom.
+    const unambiguous=[first,second].every(size=>!distinct.some(other=>other!==label&&other.page===label.page&&
+      distance(other,size)<=distance(label,size)+0.012));
+    if(!unambiguous) continue;
+    sizes.push({page:label.page,x:label.x,y:label.y,length:first.value,width:second.value,precision:0,wallLabels:true});
+  }
   const candidates=[];
   for(const label of distinct){
     for(const size of sizes){

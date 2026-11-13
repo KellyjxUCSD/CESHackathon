@@ -347,6 +347,14 @@ function publishedRooms(id, floorPlan) {
     return next;
   });
 }
+function selectedFloorPlan(id, floorPlan) {
+  return rentById.get(id)?.plans?.find(item => item.name === floorPlan) || null;
+}
+function attachFloorPlan(planToUpdate, id, floorPlan) {
+  const selected = selectedFloorPlan(id, floorPlan);
+  planToUpdate.floorPlanPropertyId = id;
+  planToUpdate.floorPlanImage = selected?.image || '';
+}
 function startFromRent(id, rent, beds, floorPlan) {
   const place = apartments.find(item => item.id === id);
   if (!place || !Number(rent)) return;
@@ -354,6 +362,7 @@ function startFromRent(id, rent, beds, floorPlan) {
   plan = newPlan();
   plan.property = place.name;
   plan.floorPlan = String(floorPlan || '').slice(0, 80);
+  attachFloorPlan(plan, id, floorPlan);
   plan.rent = Math.round(Number(rent) * 100) / 100;
   const count = Math.min(6, Math.max(1, Number(beds) || 1));
   plan.lockedBedrooms = count;
@@ -369,6 +378,7 @@ function startFromPlan(id, beds, floorPlan) {
   plan = newPlan();
   plan.property = place.name;
   plan.floorPlan = String(floorPlan || '').slice(0, 80);
+  attachFloorPlan(plan, id, floorPlan);
   const count = Math.min(6, Math.max(1, Number(beds) || 1));
   plan.roommates = publishedRooms(id, floorPlan) || Array.from({ length: count }, (_, index) => blankRoom(index));
   plan.lockedBedrooms = plan.roommates.length;
@@ -425,6 +435,15 @@ function billSetting(id) {
 }
 function onCalculatorInput(event) {
   const input = event.target;
+  if (input.dataset.weightFactor) {
+    const key = input.dataset.weightFactor;
+    if (input.value !== '' && input.validity.valid) {
+      plan.factors[key] = input.valueAsNumber;
+      persist();
+      refreshPreview();
+    }
+    return;
+  }
   if (input.dataset.extraLabel !== undefined || input.dataset.extraAmount !== undefined) {
     const index = Number(input.dataset.extraLabel ?? input.dataset.extraAmount);
     if (input.dataset.extraLabel !== undefined) plan.extraFees[index].label = input.value;
@@ -561,7 +580,7 @@ function downloadBreakdown() {
   const safe = value => /^[=+\-@\t\r\n]/.test(String(value ?? '')) ? `'${value}` : value;
   const rows = breakdownRows(plan).map(row => row.map(cell => safe(cell)));
   const url = URL.createObjectURL(new Blob(['\uFEFF' + rows.map(row => row.map(csv).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8;' }));
-  Object.assign(document.createElement('a'), { href: url, download: 'rentwise-breakdown.csv' }).click();
+  Object.assign(document.createElement('a'), { href: url, download: 'tritonrent-breakdown.csv' }).click();
   setTimeout(() => URL.revokeObjectURL(url), 1000); toast('Breakdown downloaded.');
 }
 
@@ -592,7 +611,7 @@ document.addEventListener('click', event => {
   if (button.hasAttribute('data-reset')) openModal(`${closeButton()}<div class="text-modal"><h2 id="modal-title">Start over?</h2><p>This clears the rent, the rooms, and the split saved on this device.</p><div class="modal-actions"><button class="text-button" type="button" data-close>Keep this split</button><button class="button button-primary" type="button" data-confirm-reset>Start over</button></div></div>`);
   if (button.hasAttribute('data-confirm-reset')) { floorPlanUpload.reset(); plan = newPlan(); step = 1; persist(); modal.close(); renderCalculator(true); toast('Calculation reset.'); }
   if (button.dataset.confirmBedrooms) { applyBedroomCount(Number(button.dataset.confirmBedrooms)); modal.close(); }
-  if (button.hasAttribute('data-custom')) { plan.property = ''; delete plan.floorPlan; delete plan.lockedBedrooms; step = 1; persist(); renderCalculator(); document.querySelector('[data-money="rent"]').focus(); }
+  if (button.hasAttribute('data-custom')) { plan.property = ''; delete plan.floorPlan; delete plan.floorPlanPropertyId; delete plan.floorPlanImage; delete plan.lockedBedrooms; step = 1; persist(); renderCalculator(); document.querySelector('[data-money="rent"]').focus(); }
   if (button.hasAttribute('data-share')) sharePlan();
   if (button.hasAttribute('data-summary')) copySummary();
   if (button.hasAttribute('data-download')) downloadBreakdown();
@@ -608,7 +627,10 @@ modal.addEventListener('close', () => {
   const select = document.querySelector('[data-bedrooms]');
   if (select) select.value = String(plan.roommates.length);
 });
-document.querySelector('#about-button').addEventListener('click', () => openModal(`${closeButton()}<div class="text-modal"><h2 id="modal-title">About Rentwise</h2><p>See apartments around San Diego, then work out what each person pays.</p><p>The price is read from that apartment’s website when you open it. Some sites do not share a price list. Prices can change.</p><button class="button button-primary" data-close>Close</button></div>`));
+function openAbout() {
+  openModal(`${closeButton()}<div class="text-modal about-modal"><h2 id="modal-title">About TritonRent</h2><p>Developed by UC San Diego students. Not an official campus service, and not TritonPay. Find apartments near campus and split the rent by room size and privacy. Weights can be changed. Confirm the rent with the apartment before you sign.</p><h3>Photos and prices</h3><p>A missing photo or price means that site checks for a real visitor and blocks a copy. TritonRent does not get around that check. Open their site for both. A price is shown here only when their site can be read, and it can change.</p><h3>Information security</h3><p>The plan stays in this browser. No account, and no name, rent, or location is stored on a server. Location only sorts nearby apartments and is not saved. The map is Google Maps. A share link contains the names and amounts in the plan.</p><h3>Contact</h3><p>Questions and contributions are welcome on <a href="https://github.com/KellyjxUCSD/CESHackathon" target="_blank" rel="noreferrer">GitHub</a>.</p><button class="button button-primary" data-close>Close</button></div>`);
+}
+document.querySelector('#about-button').addEventListener('click', openAbout);
 document.querySelector('#privacy-button').addEventListener('click', () => openModal(`${closeButton()}<div class="text-modal"><h2 id="modal-title">Your privacy</h2><p>Your calculation stays in this browser. No account is needed.</p><p>Use my location asks the browser where you are. Tapping the map also sets a spot. That location is not saved.</p><p>The map is Google Maps. Share links include the names and amounts in your plan.</p><button class="button button-primary" data-close>Close</button></div>`));
 
 function route() {
@@ -630,7 +652,7 @@ function route() {
   const section = currentPage === 'welcome' ? '' : currentPage === 'place' ? 'explore' : currentPage;
   document.querySelectorAll('[data-nav]').forEach(link => { if (link.dataset.nav === section) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current'); });
   const place = apartments.find(item => item.id === placeId);
-  document.title = `${currentPage === 'calculator' ? 'Rent Calculator' : currentPage === 'move-in' ? 'Move-in Guide' : currentPage === 'welcome' ? 'Welcome' : place ? place.name : 'Apartments near UCSD'} — Rentwise`;
+  document.title = `${currentPage === 'calculator' ? 'Rent Calculator' : currentPage === 'move-in' ? 'Move-in Guide' : currentPage === 'welcome' ? 'Welcome' : place ? place.name : 'Apartments near UCSD'} — TritonRent`;
   if (currentPage === 'calculator') renderCalculator();
   else if (currentPage === 'move-in') {
     main.className = 'move-in-page page-container';
@@ -647,6 +669,12 @@ function route() {
   else if (placeId) renderPlace(placeId);
   else renderExplore();
   window.scrollTo({ top: 0 });
+  try {
+    if (!sessionStorage.getItem('tritonrent-intro')) {
+      sessionStorage.setItem('tritonrent-intro', '1');
+      openAbout();
+    }
+  } catch { /* A private browser can still use the site without the intro. */ }
 }
 window.addEventListener('hashchange', route);
 route();

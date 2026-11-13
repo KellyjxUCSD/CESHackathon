@@ -237,10 +237,17 @@ function roomsStep(plan) {
     <fieldset class="split-choice"><legend class="sr-only">Split method</legend>${choice('method', 'weighted', 'By room', byRoom)}${choice('method', 'equal', 'Equally per person', !byRoom)}</fieldset></div>
     <section class="wizard-card floor-plan-card"><h2>Have a floor plan? <span class="optional-tag">Optional</span></h2><div id="floor-plan-upload"></div></section>
     <div class="measurement-toolbar"><span>Room measurements</span><label class="field"><span class="sr-only">Measurement units</span><select data-units aria-label="Measurement units"><option value="ft" ${plan.dimensionUnit !== 'm' ? 'selected' : ''}>Feet (ft)</option><option value="m" ${plan.dimensionUnit === 'm' ? 'selected' : ''}>Meters (m)</option></select></label></div>
+    ${byRoom ? weightSettings(plan) : ''}
     <div class="live-split" id="live-split">${liveSplitHTML(plan)}</div>
     <div class="room-cards">${plan.roommates.map((_, index) => roomCard(plan, index)).join('')}</div>
     ${!plan.lockedBedrooms ? `<button type="button" class="button button-outline add-space" data-add-space ${plan.roommates.length >= 12 ? 'disabled' : ''}>+ Add a room or sleeping area</button>` : ''}
     <div class="wizard-actions room-step-actions"><button type="button" class="text-button" data-back>Back to rent</button><button type="submit" class="button button-primary">Next: your split ${arrow}</button></div>`;
+}
+
+function weightSettings(plan) {
+  const factors = plan.factors || { bedroom: 1, open: 0.8, living: 0.7, privateBath: 1.1 };
+  const fields = [['bedroom', 'Enclosed room'], ['open', 'Open den or loft'], ['living', 'Living room'], ['privateBath', 'Private bathroom']];
+  return `<details class="weight-factors" data-details="weights"><summary>Change how each factor is weighted</summary><p class="group-note">An enclosed room starts at 1. A higher number makes that kind of space count for more of the rent. A private bathroom is multiplied on top of the room.</p><div class="wizard-field-grid">${fields.map(([key, label]) => `<label class="field"><span>${label}</span><input data-weight-factor="${key}" type="number" min="0" max="20" step="0.01" value="${factors[key]}" /></label>`).join('')}</div></details>`;
 }
 
 function commonQuestion(plan) {
@@ -266,6 +273,7 @@ function resultStep(plan) {
     <p class="result-total"><span>Total / month</span><strong>${money(shares.totalMonthly * 100)}</strong></p>
     ${billAllocationView(plan)}
     <section class="move-in-block"><div class="move-in-heading"><h3>Move-in costs</h3><strong>${money(shares.totalMoveIn * 100)}</strong></div>${shares.totalMoveIn ? `<div class="move-in-results">${shares.people.map(person => `<div><span>${escape(person.label)}${person.showRoom ? `<small>${escape(person.roomName)}</small>` : ''}</span><strong>${money(person.moveInDollars * 100)}</strong></div>`).join('')}</div>` : ''}</section>
+    <p class="download-note">Download breakdown saves a spreadsheet on this computer. It shows each factor, the weight you set, and the math behind every dollar.</p>
     <div class="share-actions"><button class="button button-primary" type="button" data-summary>Copy summary</button><button class="button button-outline" type="button" data-share>Copy share link</button><button class="button button-outline" type="button" data-download>Download breakdown</button></div>
     <div class="wizard-actions"><button class="text-button" type="button" data-step="2">Edit rooms</button><button class="text-button" type="button" data-step="1">Edit rent & bills</button></div>
   </section>`;

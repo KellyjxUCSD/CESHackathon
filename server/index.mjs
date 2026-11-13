@@ -8,6 +8,10 @@ import { scrapeRents, fallbackPlans } from './rents.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicRoot = path.join(root, 'public');
+const imageRequestHeaders = {
+  'user-agent': 'Mozilla/5.0 (compatible; Rentwise floor-plan reader)',
+  accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+};
 try {
   for (const line of readFileSync(path.join(root, '.env'), 'utf8').split('\n')) {
     const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
@@ -29,6 +33,27 @@ const server = http.createServer(async (req, res) => {
     const pathname = decodeURIComponent(requestUrl.pathname);
     if (pathname === '/api/maps-key') {
       json(res, 200, { key: process.env.GOOGLE_MAPS_API_KEY || '' });
+      return;
+    }
+    if (pathname === '/api/floor-plan-image') {
+      const id = requestUrl.searchParams.get('id') || '';
+      const name = requestUrl.searchParams.get('plan') || '';
+      const place = apartments.find(item => item.id === id);
+      const selected = rentCache.get(id)?.body?.plans?.find(item => item.name === name);
+      if (!place || !selected?.image) { res.writeHead(404).end('Floor plan image unavailable'); return; }
+      let imageUrl;
+      try {
+        imageUrl = new URL(selected.image);
+        if (!['http:', 'https:'].includes(imageUrl.protocol)) throw new Error('Unsupported protocol');
+      } catch { res.writeHead(400).end('Invalid floor plan image'); return; }
+      const image = await fetch(imageUrl, { headers: imageRequestHeaders, signal: AbortSignal.timeout(15000), redirect: 'follow' });
+      const type = image.headers.get('content-type') || '';
+      const size = Number(image.headers.get('content-length') || 0);
+      if (!image.ok || !type.startsWith('image/') || size > 12 * 1024 * 1024) { res.writeHead(502).end('Could not read floor plan image'); return; }
+      const bytes = Buffer.from(await image.arrayBuffer());
+      if (bytes.length > 12 * 1024 * 1024) { res.writeHead(502).end('Floor plan image is too large'); return; }
+      res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'private, max-age=300', 'X-Content-Type-Options': 'nosniff' });
+      res.end(bytes);
       return;
     }
     if (pathname === '/api/rents') {
@@ -67,4 +92,4 @@ const server = http.createServer(async (req, res) => {
     res.end(content);
   } catch { res.writeHead(404).end('Not found'); }
 });
-server.listen(port, '127.0.0.1', () => console.log(`Rentwise is ready at http://localhost:${port}`));
+server.listen(port, '127.0.0.1', () => console.log(`TritonRent is ready at http://localhost:${port}`));
