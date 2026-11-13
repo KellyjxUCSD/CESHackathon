@@ -9,6 +9,11 @@ export function bedLabel(beds) {
   return `${beds} bedrooms`;
 }
 
+function layoutLabel(beds, baths) {
+  if (beds === 0) return baths ? `Studio · 0b${baths}b` : 'Studio';
+  return baths ? `${beds}b${baths}b` : bedLabel(beds);
+}
+
 export function startingRent(result) {
   const prices = (result?.plans || []).map(item => item.low).filter(price => price > 0);
   return prices.length ? Math.min(...prices) : null;
@@ -96,35 +101,42 @@ function planFacts(item) {
 export function placePage(place, result, here) {
   const miles = milesBetween(here || UTC, place);
   const when = readWhen(result?.fetchedAt);
-  let body = place.kind ? '<p class="place-loading">Reading their website…</p>' : '<p class="place-loading">This website does not share a price list we can read. Ask them for the rent.</p>';
+  const calculatorAction = `<button class="button button-outline plan-calculator" type="button" data-start-custom="${escape(place.id)}">Start a rent split</button><p class="plan-calculator-note">Every apartment uses the same editable room calculator. Published bedroom dimensions auto-fill when they are available; you can edit them anytime.</p>`;
+  let body = place.kind ? '<p class="place-loading">Reading their website…</p>' : `<p class="place-loading">This website does not share a price list we can read. Ask them for the rent.</p>${calculatorAction}`;
   if (result?.error) {
-    body = `<p class="place-loading">${escape(result.error)}</p><button class="button button-outline" type="button" data-retry="${escape(place.id)}">Try again</button>`;
+    body = `<section class="official-floorplan-fallback"><h2>Official floor plans</h2><p>${escape(result.error)} Open the property’s floor-plan gallery for images and current details.</p><a class="button button-outline" href="${escape(place.website || place.home)}" target="_blank" rel="noreferrer">View official floor plans</a><button class="button button-outline" type="button" data-retry="${escape(place.id)}">Try again</button></section>${calculatorAction}`;
   } else if (result?.plans) {
     const groups = new Map();
     for (const item of result.plans) {
-      if (!groups.has(item.beds)) groups.set(item.beds, []);
-      groups.get(item.beds).push(item);
+      const key = `${item.beds}|${item.baths ?? ''}`;
+      if (!groups.has(key)) groups.set(key, { beds: item.beds, baths: item.baths, items: [] });
+      groups.get(key).items.push(item);
     }
-    body = [...groups.keys()].sort((a, b) => a - b).map(beds => {
-      const items = groups.get(beds).slice().sort((a, b) => (a.low || Infinity) - (b.low || Infinity));
+    body = [...groups.values()].sort((a, b) => a.beds - b.beds || (a.baths || 0) - (b.baths || 0)).map(group => {
+      const items = group.items.slice().sort((a, b) => (a.low || Infinity) - (b.low || Infinity));
       const priced = items.map(item => item.low).filter(Boolean);
-      const from = priced.length ? `Starts at ${money(Math.min(...priced))} a month` : 'Ask them for the price';
+      const from = priced.length ? `Starts at ${money(Math.min(...priced))} a month` : 'Contact property for price';
       const rows = items.map(item => {
         const shown = priceText(item.low, item.high);
+        const areaLabel = item.areaStatus === 'official'
+          ? '<span class="plan-area-status official">Official room areas ready</span>'
+          : '<span class="plan-area-status">Editable room areas</span>';
         const action = item.low
-          ? `<button class="button button-outline split-button" type="button" data-split="${escape(place.id)}" data-rent="${item.low}" data-beds="${item.beds || 1}" data-plan="${escape(item.name)}">Split ${money(item.low)}</button>`
-          : '<span class="place-meta">No price listed</span>';
-        return `<li class="rent-row"><div><strong>${escape(item.name)}</strong><span class="place-meta">${escape(planFacts(item))}</span></div><div class="rent-action"><strong>${shown || 'Ask them'}</strong>${action}</div></li>`;
+          ? `<button class="button button-outline split-button" type="button" data-split="${escape(place.id)}" data-rent="${item.low}" data-beds="${item.beds || 1}" data-plan="${escape(item.name)}">Use this plan</button>${areaLabel}`
+          : `<a class="contact-plan" href="${escape(item.url || place.home)}" target="_blank" rel="noreferrer">Contact property</a><button class="button button-outline split-button" type="button" data-start-plan="${escape(place.id)}" data-beds="${item.beds || 1}" data-plan="${escape(item.name)}">Use this plan</button>${areaLabel}`;
+        const picture = item.image ? `<a class="floorplan-picture" href="${escape(item.url || item.image)}" target="_blank" rel="noreferrer"><img src="${escape(item.image)}" alt="${escape(item.name)} floor plan" /></a>` : '';
+        return `<li class="rent-row">${picture}<div><strong>${escape(item.name)}</strong><span class="place-meta">${escape(planFacts(item))}</span></div><div class="rent-action"><strong class="${item.low ? '' : 'contact-price'}">${shown || 'Contact for price'}</strong>${action}</div></li>`;
       }).join('');
-      return `<section class="rent-group"><h2>${bedLabel(beds)}</h2><p class="rent-from">${from}</p><ul>${rows}</ul></section>`;
+      return `<section class="rent-group"><h2>${layoutLabel(group.beds, group.baths)}</h2><p class="rent-from">${from}</p><ul>${rows}</ul></section>`;
     }).join('');
   }
   return `<a class="back-link" href="#/explore"><span aria-hidden="true">←</span> All apartments</a>
     <section class="place-detail">
       ${place.photo ? `<img class="place-hero" src="${escape(place.photo)}" alt="${escape(place.photoAlt || place.name)}" />` : ''}
       <p class="place-kicker">${milesLabel(miles, Boolean(here))}</p><h1>${escape(place.name)}</h1><p class="place-address">${escape(place.address)}</p>
-      <p class="place-source">${result?.plans ? `Prices from ${escape(place.sourceName)}${when ? `, ${when}` : ''}. They can change.` : 'Open their website to ask about rent.'}</p>
+      <p class="place-source">${result?.plans ? (result.priceUnavailable ? `Floor plans from ${escape(place.sourceName)}${when ? `, ${when}` : ''}. Contact the property for current pricing.` : `Prices from ${escape(place.sourceName)}${when ? `, ${when}` : ''}. They can change.`) : 'Open their website to ask about rent.'}</p>
       ${body}
+      ${result?.plans ? calculatorAction : ''}
       <p class="place-site">${siteLink(place)}</p>
     </section>`;
 }
