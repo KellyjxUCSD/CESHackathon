@@ -124,7 +124,7 @@ export function placePage(place, result, here) {
       ${place.photo ? `<img class="place-hero" src="${escape(place.photo)}" alt="${escape(place.photoAlt || place.name)}" />` : ''}
       <p class="place-kicker">${milesLabel(miles, Boolean(here))}</p><h1>${escape(place.name)}</h1><p class="place-address">${escape(place.address)}</p>
       <p class="place-source">${result?.plans ? `Prices from ${escape(place.sourceName)}${when ? `, ${when}` : ''}. They can change.` : 'Open their website to ask about rent.'}</p>
-      ${body}
       <p class="place-site">${siteLink(place)}</p>
+      ${body}
     </section>`;
 }

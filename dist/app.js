@@ -63,7 +63,7 @@ function mapStatus(text) {
 function mapCenter() {
   if (!map) return UTC;
   const center = map.getCenter();
-  return center ? { lat: center.lat(), lng: center.lng() } : UTC;
+  return center ? { lat: center.lat, lng: center.lng } : UTC;
 }
 function orderedApartments() {
   const query = filters.search.toLowerCase().trim();
@@ -86,19 +86,15 @@ function orderedApartments() {
   } else list.sort((a, b) => milesBetween(origin, a) - milesBetween(origin, b));
   if (query) return list;
   if (lookMode === 'nearest' && here) return list.slice(0, 10);
-  if (lookMode === 'map' && map?.getBounds()) return list.filter(place => map.getBounds().contains(place));
+  if (lookMode === 'map' && map?.getBounds()) return list.filter(place => map.getBounds().contains([place.lat, place.lng]));
   return list;
 }
 function focusMatches(list) {
-  if (!map || !list.length) return;
-  const bounds = new google.maps.LatLngBounds();
-  list.forEach(place => bounds.extend(place));
+  if (!map || !list.length || !window.L) return;
+  const bounds = window.L.latLngBounds(list.map(place => [place.lat, place.lng]));
   suppressMove = true;
-  map.fitBounds(bounds, 64);
-  google.maps.event.addListenerOnce(map, 'idle', () => {
-    if (map && map.getZoom() > 15) map.setZoom(15);
-    suppressMove = false;
-  });
+  map.fitBounds(bounds, { padding: [64, 64], maxZoom: 15 });
+  setTimeout(() => { suppressMove = false; }, 300);
 }
 let moveTimer = 0;
 function showViewport() {
@@ -170,7 +166,7 @@ function loadRents(id) {
       rentById.set(id, result);
       return result;
     }).catch(() => {
-      const result = { error: 'We could not read their website just now.' };
+      const result = { error: 'Live price lookup is unavailable here. Visit the property website for current availability.' };
       rentById.set(id, result);
       return result;
     }).finally(() => rentLoads.delete(id));
@@ -182,39 +178,38 @@ function ensureMap() {
   const frame = document.querySelector('#apartment-map');
   if (!frame) return;
   if (!mapsPromise) {
-    window.gm_authFailure = () => {
-      const box = document.querySelector('#apartment-map');
-      if (box) box.innerHTML = '<p class="map-fallback">The map did not open. The apartments are still listed below.</p>';
-    };
-    mapsPromise = fetch('/api/maps-key').then(response => response.json()).then(data => {
-      if (!data.key) return false;
-      return new Promise(resolve => {
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(data.key)}&v=weekly`;
-        script.async = true;
-        script.onload = () => resolve(Boolean(window.google?.maps));
-        script.onerror = () => resolve(false);
-        document.head.appendChild(script);
-      });
-    }).catch(() => false);
+    mapsPromise = new Promise(resolve => {
+      if (window.L) { resolve(true); return; }
+      const style = document.createElement('link');
+      style.rel = 'stylesheet';
+      style.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(style);
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.async = true;
+      script.onload = () => resolve(Boolean(window.L));
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    });
   }
   mapsPromise.then(ready => {
     const box = document.querySelector('#apartment-map');
     if (!box || map) return;
     if (!ready) { box.innerHTML = '<p class="map-fallback">The map did not open. The apartments are still listed below.</p>'; return; }
-    map = new google.maps.Map(box, {
-      center: { lat: 32.864, lng: -117.22 }, zoom: 13, mapTypeControl: false, streetViewControl: false, fullscreenControl: false, clickableIcons: false, gestureHandling: 'greedy',
-    });
-    const bounds = new google.maps.LatLngBounds();
-    apartments.forEach(place => bounds.extend(place));
+    map = window.L.map(box, { scrollWheelZoom: true }).setView([32.864, -117.22], 13);
+    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors',
+    }).addTo(map);
+    const bounds = window.L.latLngBounds(apartments.map(place => [place.lat, place.lng]));
     suppressMove = true;
-    map.fitBounds(bounds, 48);
+    map.fitBounds(bounds, { padding: [48, 48], maxZoom: 13 });
     let dragged = false;
-    map.addListener('dragstart', () => { dragged = true; });
-    map.addListener('click', event => {
+    map.on('dragstart', () => { dragged = true; });
+    map.on('click', event => {
       if (dragged) return;
-      if (!event.latLng) return;
-      here = { lat: event.latLng.lat(), lng: event.latLng.lng() };
+      if (!event.latlng) return;
+      here = { lat: event.latlng.lat, lng: event.latlng.lng };
       filters.search = '';
       const search = document.querySelector('#search');
       if (search) search.value = '';
@@ -224,36 +219,30 @@ function ensureMap() {
       renderListings();
       setTimeout(() => { suppressMove = false; }, 500);
     });
-    map.addListener('dragend', () => {
+    map.on('dragend', () => {
       showViewport();
       setTimeout(() => { dragged = false; }, 300);
     });
-    map.addListener('zoom_changed', showViewport);
-    google.maps.event.addListenerOnce(map, 'idle', () => {
-      if (map && map.getZoom() > 14) map.setZoom(13);
-      suppressMove = false;
-      if (lookMode === 'map') renderListings();
-    });
+    map.on('zoomend', showViewport);
+    setTimeout(() => { suppressMove = false; if (lookMode === 'map') renderListings(); }, 100);
     drawMarkers();
   });
 }
 function drawMarkers() {
-  if (!map) return;
-  markers.forEach(marker => marker.setMap(null));
+  if (!map || !window.L) return;
+  markers.forEach(marker => marker.remove());
   markers = orderedApartments().map((place, index) => {
-    const marker = new google.maps.Marker({
-      position: { lat: place.lat, lng: place.lng }, map, title: place.name,
-      label: { text: String(index + 1), color: '#111827', fontSize: '12px', fontWeight: '600' },
-      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 14, fillColor: '#ffffff', fillOpacity: 1, strokeColor: '#111827', strokeWeight: 1.5 },
-    });
-    marker.addListener('click', () => { location.hash = `/place/${place.id}`; });
+    const marker = window.L.marker([place.lat, place.lng], {
+      title: place.name,
+      icon: window.L.divIcon({ className: 'map-marker', html: `<span>${index + 1}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }),
+    }).addTo(map);
+    marker.on('click', () => { location.hash = `/place/${place.id}`; });
     return marker;
   });
-  if (youMarker) youMarker.setMap(null);
-  youMarker = here ? new google.maps.Marker({
-    position: here, map, title: 'You', zIndex: 10,
-    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: '#111827', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2 },
-  }) : null;
+  if (youMarker) youMarker.remove();
+  youMarker = here ? window.L.circleMarker([here.lat, here.lng], {
+    radius: 7, color: '#ffffff', weight: 2, fillColor: '#111827', fillOpacity: 1,
+  }).addTo(map) : null;
 }
 function useMyLocation() {
   const status = document.querySelector('#map-status');
@@ -269,8 +258,8 @@ function useMyLocation() {
     mapStatus(miles > 20 ? `You are about ${Math.round(miles)} miles from La Jolla. The 10 closest apartments there are listed.` : 'These are the 10 closest apartments.');
     if (map && miles <= 20) {
       suppressMove = true;
-      map.panTo(here);
-      google.maps.event.addListenerOnce(map, 'idle', () => { suppressMove = false; });
+      map.panTo([here.lat, here.lng]);
+      setTimeout(() => { suppressMove = false; }, 300);
     }
     renderListings();
   }, () => { mapStatus('Location stayed off. Tap the map to drop a pin instead.'); }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 });
