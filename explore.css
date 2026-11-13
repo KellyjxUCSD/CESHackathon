@@ -49,6 +49,8 @@
 .rent-row > div:first-child strong { display: block; font-size: 15px; }
 .rent-action { align-items: flex-end; text-align: right; flex-shrink: 0; }
 .rent-action strong { font-size: 20px; letter-spacing: -.4px; }
+.rent-action .contact-price { color: var(--ink); font-size: 17px; }
+.contact-plan { margin-top: 4px; color: var(--muted); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
 .split-button { margin-top: 8px; padding: 8px 14px; }
 .plan-area-status { display: block; max-width: 180px; margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.35; }
 .plan-area-status.official { color: #176448; font-weight: 600; }

@@ -23,6 +23,27 @@ const exactRoomDimensions = {
     ],
   },
 };
+// Official fallbacks for sites that occasionally block server-to-server requests.
+// These deliberately contain no rent: the UI must say “Contact for price” until a
+// readable current price feed is available again. Image and plan URLs remain on the
+// property's official RentCafe/CDN pages.
+const publishedFallbackPlans = {
+  regencia: [
+    { name: 'Pinnacle', beds: 1, baths: 1, sqft: 880, image: 'https://resource.rentcafe.com/image/upload/q_auto%2Cf_auto%2Cc_limit%2Cw_576%2Ch_260/s3/2/93425/p1915702_la_regencia_pinnacle_2_floorplan.jpg' },
+    { name: 'Belmont I', beds: 2, baths: 2, sqft: 1270, image: 'https://resource.rentcafe.com/image/upload/q_auto%2Cf_auto%2Cc_limit%2Cw_576%2Ch_260/s3/2/93425/p1915702_la_regencia_belmont_i_2_floorplan.jpg' },
+    { name: 'Belmont II', beds: 2, baths: 2, sqft: 1200, image: 'https://resource.rentcafe.com/image/upload/q_auto%2Cf_auto%2Cc_limit%2Cw_576%2Ch_260/s3/2/93425/p1915702_la_regencia_belmont_ii_2_floorplan.jpg' },
+    { name: 'Newport', beds: 2, baths: 2, sqft: 1300, image: 'https://resource.rentcafe.com/image/upload/q_auto%2Cf_auto%2Cc_limit%2Cw_576%2Ch_260/s3/2/93425/p1915702_la_regencia_newport_2_floorplan.jpg' },
+    { name: 'Ventura I', beds: 3, baths: 2, sqft: 1450, image: 'https://resource.rentcafe.com/image/upload/q_auto%2Cf_auto%2Cc_limit%2Cw_576%2Ch_260/s3/2/93425/p1915702_la_regencia_ventura_i_2_floorplan.jpg' },
+    { name: 'Ventura II', beds: 3, baths: 2, sqft: 1500, image: 'https://resource.rentcafe.com/image/upload/q_auto%2Cf_auto%2Cc_limit%2Cw_576%2Ch_260/s3/2/93425/p1915702_la_regencia_ventura_ii_2_floorplan.jpg' },
+  ],
+  blue: [
+    { name: '1Bed 1 Bath 687sf', beds: 1, baths: 1, sqft: 687, image: 'https://resource.rentcafe.com/image/upload/q_auto%2Cf_auto%2Cc_limit%2Cw_576%2Ch_260/s3/2/206706/p1703223_la%20jolla%20blue_one%20bed_one%20bath_687sq_floorplan.png', url: 'https://www.lajollablueapartments.com/floorplans/1bed-1-bath-687sf' },
+    { name: '1Bed 1Bath 694sf', beds: 1, baths: 1, sqft: 694, image: 'https://resource.rentcafe.com/image/upload/q_auto%2Cf_auto%2Cc_limit%2Cw_576%2Ch_260/s3/2/206706/p1703223_la%20jolla%20blue_one%20bed_one%20bath_694sq_floorplan.png', url: 'https://www.lajollablueapartments.com/floorplans/1bed-1bath-694sf' },
+    { name: '1Bed 1Bath 709sf', beds: 1, baths: 1, sqft: 709, image: 'https://resource.rentcafe.com/image/upload/q_auto%2Cf_auto%2Cc_limit%2Cw_576%2Ch_260/s3/2/206706/p1703223_la%20jolla%20blue_one%20bed_one%20bath_709sq_floorplan.png', url: 'https://www.lajollablueapartments.com/floorplans/1bed-1bath-709sf' },
+    { name: '2Bed 2Bath 961sf', beds: 2, baths: 2, sqft: 961, image: 'https://resource.rentcafe.com/image/upload/q_auto%2Cf_auto%2Cc_limit%2Cw_576%2Ch_260/s3/2/206706/p1703223_la%20jolla%20blue_two%20bed_two%20bath_961sq_floorplan.png', url: 'https://www.lajollablueapartments.com/floorplans/2bed-2bath-961sf' },
+    { name: '2Bed 2Bath 981sf', beds: 2, baths: 2, sqft: 981, image: 'https://resource.rentcafe.com/image/upload/q_auto%2Cf_auto%2Cc_limit%2Cw_576%2Ch_260/s3/2/206706/p1703223_la%20jolla%20blue_two%20bed_two%20bath_981sq_floorplan.png', url: 'https://www.lajollablueapartments.com/floorplans/2bed-2bath-981sf' },
+  ],
+};
 
 const cache = new Map();
 const staticOrigin = 'https://rentwise-ces-hackathon.russetpistachio8.chatgpt.site';
@@ -194,9 +215,9 @@ async function scrape(place) {
     const data = await readJson('https://inventory.g5marketingcloud.com/graphql', { method: 'POST', headers: { 'content-type': 'application/json', origin: new URL(place.website).origin, referer: place.website }, body: JSON.stringify({ query: g5Query, variables: { locationUrn, moveInDate: new Date().toISOString().slice(0, 10) } }) });
     plans = parseG5(data);
   }
-  const priced = addPublishedPlanRoomDimensions(addPublishedPlanImages((plans || []).filter(item => item.low), page, place.website), page);
-  if (!priced.length) throw new Error('No current prices were published.');
-  return priced;
+  const listed = addPublishedPlanRoomDimensions(addPublishedPlanImages(plans || [], page, place.website), page);
+  if (!listed.length) throw new Error('No current floor plans were published.');
+  return listed;
 }
 function attachExactRoomDimensions(id, plans) {
   const dimensions = exactRoomDimensions[id] || {};
@@ -225,6 +246,12 @@ export default {
       cache.set(id, { at: Date.now(), body });
       return json(body);
     } catch (error) {
+      const fallback = publishedFallbackPlans[id];
+      if (fallback) {
+        const body = { id, source: place.website, sourceName: place.sourceName, fetchedAt: new Date().toISOString(), plans: attachExactRoomDimensions(id, fallback.map(item => plan({ ...item, url: item.url || place.website }))), priceUnavailable: true };
+        cache.set(id, { at: Date.now(), body });
+        return json(body);
+      }
       return json({ id, source: place.website, sourceName: place.sourceName, error: error instanceof Error ? error.message : 'Could not read the property website.' });
     }
   },

@@ -115,7 +115,7 @@ export function placePage(place, result, here) {
     body = [...groups.values()].sort((a, b) => a.beds - b.beds || (a.baths || 0) - (b.baths || 0)).map(group => {
       const items = group.items.slice().sort((a, b) => (a.low || Infinity) - (b.low || Infinity));
       const priced = items.map(item => item.low).filter(Boolean);
-      const from = priced.length ? `Starts at ${money(Math.min(...priced))} a month` : 'Ask them for the price';
+      const from = priced.length ? `Starts at ${money(Math.min(...priced))} a month` : 'Contact property for price';
       const rows = items.map(item => {
         const shown = priceText(item.low, item.high);
         const areaLabel = item.areaStatus === 'official'
@@ -123,9 +123,9 @@ export function placePage(place, result, here) {
           : '<span class="plan-area-status">Editable room areas</span>';
         const action = item.low
           ? `<button class="button button-outline split-button" type="button" data-split="${escape(place.id)}" data-rent="${item.low}" data-beds="${item.beds || 1}" data-plan="${escape(item.name)}">Use this plan</button>${areaLabel}`
-          : '<span class="place-meta">No price listed</span>';
+          : `<a class="contact-plan" href="${escape(item.url || place.home)}" target="_blank" rel="noreferrer">Contact property</a><button class="button button-outline split-button" type="button" data-start-plan="${escape(place.id)}" data-beds="${item.beds || 1}" data-plan="${escape(item.name)}">Use this plan</button>${areaLabel}`;
         const picture = item.image ? `<a class="floorplan-picture" href="${escape(item.url || item.image)}" target="_blank" rel="noreferrer"><img src="${escape(item.image)}" alt="${escape(item.name)} floor plan" /></a>` : '';
-        return `<li class="rent-row">${picture}<div><strong>${escape(item.name)}</strong><span class="place-meta">${escape(planFacts(item))}</span></div><div class="rent-action"><strong>${shown || 'Ask them'}</strong>${action}</div></li>`;
+        return `<li class="rent-row">${picture}<div><strong>${escape(item.name)}</strong><span class="place-meta">${escape(planFacts(item))}</span></div><div class="rent-action"><strong class="${item.low ? '' : 'contact-price'}">${shown || 'Contact for price'}</strong>${action}</div></li>`;
       }).join('');
       return `<section class="rent-group"><h2>${layoutLabel(group.beds, group.baths)}</h2><p class="rent-from">${from}</p><ul>${rows}</ul></section>`;
     }).join('');
@@ -134,7 +134,7 @@ export function placePage(place, result, here) {
     <section class="place-detail">
       ${place.photo ? `<img class="place-hero" src="${escape(place.photo)}" alt="${escape(place.photoAlt || place.name)}" />` : ''}
       <p class="place-kicker">${milesLabel(miles, Boolean(here))}</p><h1>${escape(place.name)}</h1><p class="place-address">${escape(place.address)}</p>
-      <p class="place-source">${result?.plans ? `Prices from ${escape(place.sourceName)}${when ? `, ${when}` : ''}. They can change.` : 'Open their website to ask about rent.'}</p>
+      <p class="place-source">${result?.plans ? (result.priceUnavailable ? `Floor plans from ${escape(place.sourceName)}${when ? `, ${when}` : ''}. Contact the property for current pricing.` : `Prices from ${escape(place.sourceName)}${when ? `, ${when}` : ''}. They can change.`) : 'Open their website to ask about rent.'}</p>
       <p class="place-site">${siteLink(place)}</p>
       ${body}
       ${result?.plans ? calculatorAction : ''}

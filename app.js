@@ -353,6 +353,22 @@ function startCustomApartment(id) {
   persist(); step = 1;
   if (currentPage === 'calculator') renderCalculator(); else location.hash = '/calculator';
 }
+function startPlanWithoutPrice(id, beds, floorPlan) {
+  const place = apartments.find(item => item.id === id);
+  if (!place) return;
+  plan = newPlan();
+  plan.property = place.name;
+  plan.floorPlan = String(floorPlan || '').slice(0, 80);
+  const count = Math.min(6, Math.max(1, Number(beds) || 1));
+  plan.lockedBedrooms = count;
+  plan.roommates = Array.from({ length: count }, (_, index) => {
+    const room = blankRoom(index);
+    room.sourceNote = 'This plan does not publish a current price or bedroom measurements. Add your own estimate; it stays editable.';
+    return room;
+  });
+  persist(); step = 1;
+  if (currentPage === 'calculator') renderCalculator(); else location.hash = '/calculator';
+}
 function renderCalculator(focus = false) {
   if (step === 2 && plan.method === 'size') { plan.method = 'rooms'; persist(); }
   main.className = 'calculator-page page-container calculator-wizard';
@@ -528,6 +544,7 @@ document.addEventListener('click', event => {
   if (button.dataset.place) location.hash = `/place/${button.dataset.place}`;
   if (button.dataset.split) startFromRent(button.dataset.split, button.dataset.rent, button.dataset.beds, button.dataset.plan);
   if (button.dataset.startCustom) startCustomApartment(button.dataset.startCustom);
+  if (button.dataset.startPlan) startPlanWithoutPrice(button.dataset.startPlan, button.dataset.beds, button.dataset.plan);
   if (button.dataset.retry) { rentById.delete(button.dataset.retry); renderPlace(button.dataset.retry); }
   if (button.hasAttribute('data-near')) useMyLocation();
   if (button.hasAttribute('data-close')) modal.close();
