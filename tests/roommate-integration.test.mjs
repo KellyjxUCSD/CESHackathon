@@ -109,3 +109,12 @@ test('floor-plan parsing keeps printed measurements and rejects implausible size
   assert.equal(rooms[1].kind,'living');
   assert.ok(!rooms[2].length);
 });
+
+test('floor-plan parsing recovers compact OCR dimensions and separate wall labels', () => {
+  const rooms = planRooms([
+    {text:'Bedroom 1',page:1,x:.25,y:.25}, {text:'126 x 100',page:1,x:.25,y:.29},
+    {text:'Bedroom 2',page:1,x:.75,y:.25}, {text:'12 ft',page:1,x:.72,y:.20}, {text:'10 ft',page:1,x:.78,y:.29},
+  ]);
+  assert.deepEqual([rooms[0].length,rooms[0].width],[12.5,10]);
+  assert.deepEqual([rooms[1].length,rooms[1].width].sort((a,b)=>a-b),[10,12]);
+});

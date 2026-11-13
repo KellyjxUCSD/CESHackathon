@@ -22,7 +22,7 @@ const plan = (fields) => ({
   roomDimensions: Array.isArray(fields.roomDimensions) ? fields.roomDimensions : null,
 });
 
-export function parseJonah(html) {
+export function parseJonah(html, pageUrl) {
   const match = String(html).match(/<script type="application\/json" id="jd-fp-data-script-app">([\s\S]*?)<\/script>/);
   if (!match) return null;
   const data = JSON.parse(match[1]);
@@ -36,7 +36,46 @@ export function parseJonah(html) {
       low: price.priceLow || item.rent_min,
       high: price.priceHigh || item.rent_max,
       available: Number(item.availability_count),
+      url: item.slug ? new URL(`${item.slug}/`, pageUrl).href : null,
     });
+  });
+}
+
+async function addJonahImages(plans = []) {
+  await Promise.all(plans.map(async item => {
+    if (!item.url) return;
+    try {
+      const page = await readText(item.url);
+      const image = page.match(/https?:\\?\/\\?\/[^"']+?(?:Listing|Detail)[^"']+?\.(?:jpe?g|png|webp)/i)?.[0];
+      if (image) item.image = image.replaceAll('\\/', '/');
+    } catch { /* Keep the plan usable when an individual image is unavailable. */ }
+  }));
+  return plans;
+}
+
+function publishedPlanImages(html, baseUrl) {
+  const images = [];
+  for (const tag of String(html).matchAll(/<img\b[^>]*>/gi)) {
+    const source = tag[0].match(/\b(?:src|data-src|data-lazy-src)\s*=\s*["']([^"']+)/i)?.[1];
+    const label = `${tag[0].match(/\balt\s*=\s*["']([^"']*)/i)?.[1] || ''} ${tag[0].match(/\btitle\s*=\s*["']([^"']*)/i)?.[1] || ''}`.replace(/\s+/g, ' ').trim();
+    if (!source || !/floor\s*plan|floorplan|(?:studio|\d+)\s*(?:bed|bedroom)/i.test(`${label} ${source}`)) continue;
+    try { images.push({ url: new URL(source.replaceAll('\\/', '/'), baseUrl).href, label: label.toLowerCase() }); } catch { /* Skip invalid published URLs. */ }
+  }
+  return [...new Map(images.map(image => [image.url, image])).values()];
+}
+
+function addPublishedPlanImages(plans, html, baseUrl) {
+  if (!plans?.length) return plans;
+  const images = publishedPlanImages(html, baseUrl);
+  if (!images.length) return plans;
+  return plans.map((item, index) => {
+    if (item.image) return item;
+    const name = item.name.toLowerCase();
+    const direct = images.find(image => image.label.includes(name));
+    // Positional pairing is used only when the official page exposes exactly one
+    // floor-plan image per parsed plan; otherwise we avoid showing a wrong plan.
+    const paired = images.length === plans.length ? images[index] : null;
+    return { ...item, image: (direct || paired)?.url || null, url: item.url || baseUrl };
   });
 }
 
@@ -165,6 +204,8 @@ export function parseG5(data) {
     low: item.startingRate,
     high: item.endingRate,
     available: Number(item.totalAvailableUnits),
+    image: item.imageUrl || item.imageUrls?.[0] || item.virtualImageUrl,
+    url: item.brochurePdf || null,
   }));
 }
 
@@ -185,10 +226,24 @@ async function readJson(url, options = {}) {
   return response.json();
 }
 
+async function addRealPageImages(place, plans) {
+  if (!plans?.length) return plans;
+  try {
+    const galleryUrl = new URL('CmsSiteManager/callback.aspx?act=Proxy/GetFloorPlans', place.website).href;
+    const gallery = await readJson(galleryUrl);
+    const imagesByName = new Map((gallery.floorplans || []).map(item => {
+      const image = item.floorPlanImages?.find(candidate => candidate.httpsSrc || candidate.src);
+      const source = image?.httpsSrc || image?.src;
+      return [String(item.name || '').trim().toLowerCase(), source ? source.replace('%s', '576x576') : null];
+    }));
+    return plans.map(item => ({ ...item, image: item.image || imagesByName.get(item.name.trim().toLowerCase()) || null, url: item.url || place.website }));
+  } catch { return plans; }
+}
+
 const floorplanQuery = `query ApartmentComplex($locationUrn: String!, $moveInDate: String!) {
   apartmentComplex(locationUrn: $locationUrn) {
     floorplans(moveInDate: $moveInDate, dateFlexibility: 45) {
-      name beds baths sqft startingRate endingRate totalAvailableUnits
+      name beds baths sqft startingRate endingRate totalAvailableUnits imageUrl imageUrls virtualImageUrl brochurePdf
     }
   }
 }`;
@@ -199,13 +254,13 @@ export async function scrapeRents(place) {
     throw new Error('Their website asked for a browser check.');
   }
   let plans = null;
-  if (place.kind === 'jonah') plans = parseJonah(page);
+  if (place.kind === 'jonah') plans = await addJonahImages(parseJonah(page, place.website));
   if (place.kind === 'realpage') {
     const propertyId = page.match(/propertyId\s*=\s*'(\d+)'/)?.[1];
     const apiKey = page.match(/apiKey:\s*'([0-9a-f-]{36})'/i)?.[1];
     if (!propertyId || !apiKey) throw new Error('The price list was not on the page.');
     const data = await readJson(`https://api.ws.realpage.com/v2/property/${propertyId}/floorplans`, { headers: { 'x-ws-authkey': apiKey } });
-    plans = parseRealpage(data);
+    plans = await addRealPageImages(place, parseRealpage(data));
   }
   if (place.kind === 'schema') plans = parseSchemaOffers(page);
   if (place.kind === 'cards') plans = parseFloorplanCards(page);
@@ -222,7 +277,7 @@ export async function scrapeRents(place) {
     plans = parseG5(data);
   }
   if (!plans?.length) throw new Error('No prices were listed.');
-  return { plans: annotatePlans(place.id, plans) };
+  return { plans: annotatePlans(place.id, addPublishedPlanImages(plans, page, place.website)) };
 }
 
 export function fallbackPlans(place) {
