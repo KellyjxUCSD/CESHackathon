@@ -4,7 +4,7 @@ import { readFile as readFileAsync } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { apartments } from '../public/js/apartments.js';
-import { scrapeRents } from './rents.mjs';
+import { scrapeRents, fallbackPlans } from './rents.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicRoot = path.join(root, 'public');
@@ -42,7 +42,12 @@ const server = http.createServer(async (req, res) => {
         rentCache.set(place.id, { at: Date.now(), body });
         json(res, 200, body);
       } catch {
-        json(res, 200, { error: 'We could not read their website just now.' });
+        const plans = fallbackPlans(place);
+        if (plans) {
+          const body = { id: place.id, source: place.website, sourceName: place.sourceName, fetchedAt: new Date().toISOString(), plans, priceUnavailable: true };
+          rentCache.set(place.id, { at: Date.now(), body });
+          json(res, 200, body);
+        } else json(res, 200, { error: 'Live floor-plan pricing could not be loaded. Please try again or visit the property website.' });
       }
       return;
     }

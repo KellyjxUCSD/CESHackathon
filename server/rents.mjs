@@ -17,6 +17,9 @@ const plan = (fields) => ({
   high: moneyNumber(fields.high) || moneyNumber(fields.low),
   available: Number.isFinite(fields.available) ? fields.available : null,
   deposit: moneyNumber(fields.deposit),
+  image: typeof fields.image === 'string' ? fields.image : null,
+  url: typeof fields.url === 'string' ? fields.url : null,
+  roomDimensions: Array.isArray(fields.roomDimensions) ? fields.roomDimensions : null,
 });
 
 export function parseJonah(html) {
@@ -93,6 +96,64 @@ export function parseFloorplanCards(html) {
   return plans.length ? plans : null;
 }
 
+export function parseCatalog(html, baseUrl) {
+  const plans = [], seen = new Set();
+  const headings = [...String(html).matchAll(/<h[2-4][^>]*>([\s\S]*?)<\/h[2-4]>/gi)];
+  for (let index = 0; index < headings.length; index += 1) {
+    const heading = headings[index];
+    const name = heading[1].replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
+    if (!name || seen.has(name.toLowerCase())) continue;
+    const section = String(html).slice(heading.index, headings[index + 1]?.index || heading.index + 12000);
+    const facts = section.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ');
+    const bedMatch = facts.match(/(?:^|\s)(Studio|\d+)\s*(?:Bed|Bedroom)s?\b/i);
+    const bathMatch = facts.match(/(\d+(?:\.\d+)?)\s*(?:Bath|Bathroom)s?\b/i);
+    if (!bedMatch || !bathMatch) continue;
+    const source = section.match(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)/i)?.[1];
+    let image = null;
+    try { if (source) image = new URL(source.replaceAll('\\/', '/'), baseUrl).href; } catch { /* A plan can still be used without an image. */ }
+    const sqft = Number((facts.match(/([\d,]+)(?:\s*[-–to]+\s*[\d,]+)?\s*Sq\.?\s*(?:Ft)?/i) || [])[1]?.replace(/,/g, ''));
+    const price = facts.match(/(?:Starting at|Rent)\s*\$?\s*([\d,]+(?:\.\d{2})?)/i)?.[1]
+      || facts.match(/\$\s*([\d,]+(?:\.\d{2})?)(?:\s*(?:to|-)\s*\$?\s*[\d,]+)?\s*\/?\s*month/i)?.[1];
+    seen.add(name.toLowerCase());
+    plans.push(plan({ name, beds: /^studio$/i.test(bedMatch[1]) ? 0 : Number(bedMatch[1]), baths: Number(bathMatch[1]), sqft, low: price, image, url: baseUrl }));
+  }
+  return plans.length ? plans : null;
+}
+
+const exactRoomDimensions = {
+  palisade: {
+    '2 Bedroom C': [
+      { name: 'Primary bedroom', length: 13.25, width: 18 + 1 / 12 },
+      { name: 'Bedroom 2', length: 11 + 2 / 12, width: 11 + 5 / 12 },
+    ],
+  },
+};
+
+// These are official plan images used only when a property blocks the live feed.
+// No price is fabricated: the client explicitly says to contact the property.
+const publishedFallbackPlans = {
+  regencia: [
+    { name: 'Pinnacle', beds: 1, baths: 1, sqft: 880, image: 'https://resource.rentcafe.com/image/upload/q_auto,f_auto,c_limit,w_576,h_260/s3/2/93425/p1915702_la_regencia_pinnacle_2_floorplan.jpg' },
+    { name: 'Belmont I', beds: 2, baths: 2, sqft: 1270, image: 'https://resource.rentcafe.com/image/upload/q_auto,f_auto,c_limit,w_576,h_260/s3/2/93425/p1915702_la_regencia_belmont_i_2_floorplan.jpg' },
+    { name: 'Belmont II', beds: 2, baths: 2, sqft: 1200, image: 'https://resource.rentcafe.com/image/upload/q_auto,f_auto,c_limit,w_576,h_260/s3/2/93425/p1915702_la_regencia_belmont_ii_2_floorplan.jpg' },
+    { name: 'Newport', beds: 2, baths: 2, sqft: 1300, image: 'https://resource.rentcafe.com/image/upload/q_auto,f_auto,c_limit,w_576,h_260/s3/2/93425/p1915702_la_regencia_newport_2_floorplan.jpg' },
+    { name: 'Ventura I', beds: 3, baths: 2, sqft: 1450, image: 'https://resource.rentcafe.com/image/upload/q_auto,f_auto,c_limit,w_576,h_260/s3/2/93425/p1915702_la_regencia_ventura_i_2_floorplan.jpg' },
+  ],
+  blue: [
+    { name: '1Bed 1 Bath 687sf', beds: 1, baths: 1, sqft: 687, image: 'https://resource.rentcafe.com/image/upload/q_auto,f_auto,c_limit,w_576,h_260/s3/2/206706/p1703223_la%20jolla%20blue_one%20bed_one%20bath_687sq_floorplan.png' },
+    { name: '1Bed 1Bath 694sf', beds: 1, baths: 1, sqft: 694, image: 'https://resource.rentcafe.com/image/upload/q_auto,f_auto,c_limit,w_576,h_260/s3/2/206706/p1703223_la%20jolla%20blue_one%20bed_one%20bath_694sq_floorplan.png' },
+    { name: '2Bed 2Bath 961sf', beds: 2, baths: 2, sqft: 961, image: 'https://resource.rentcafe.com/image/upload/q_auto,f_auto,c_limit,w_576,h_260/s3/2/206706/p1703223_la%20jolla%20blue_two%20bed_two%20bath_961sq_floorplan.png' },
+  ],
+};
+
+function annotatePlans(id, plans) {
+  const known = exactRoomDimensions[id] || {};
+  return plans.map(item => {
+    const roomDimensions = known[item.name] || item.roomDimensions || null;
+    return { ...item, roomDimensions, areaStatus: roomDimensions ? 'official' : 'editable' };
+  });
+}
+
 export function parseG5(data) {
   const list = data?.data?.apartmentComplex?.floorplans;
   if (!Array.isArray(list)) return null;
@@ -148,6 +209,7 @@ export async function scrapeRents(place) {
   }
   if (place.kind === 'schema') plans = parseSchemaOffers(page);
   if (place.kind === 'cards') plans = parseFloorplanCards(page);
+  if (place.kind === 'catalog') plans = parseCatalog(page, place.website);
   if (place.kind === 'g5') {
     const locationUrn = page.match(/"locationUrn":\s*"(g5-cl-[a-z0-9-]+)"/)?.[1];
     if (!locationUrn) throw new Error('The price list was not on the page.');
@@ -160,5 +222,11 @@ export async function scrapeRents(place) {
     plans = parseG5(data);
   }
   if (!plans?.length) throw new Error('No prices were listed.');
-  return { plans };
+  return { plans: annotatePlans(place.id, plans) };
+}
+
+export function fallbackPlans(place) {
+  const fallback = publishedFallbackPlans[place.id];
+  if (!fallback) return null;
+  return annotatePlans(place.id, fallback.map(item => plan({ ...item, url: item.url || place.website })));
 }
