@@ -23,19 +23,49 @@ Open **http://localhost:5173**. To choose another port: `PORT=3000 npm run dev`.
 
 Saved places and your current calculation persist in local storage. Share links contain a snapshot, so a recipient can open and edit their own copy. For sharing across devices, host the static files at an accessible URL; a localhost link only works on the same computer.
 
+## Floor plans and roommate splits
+
+The existing Rent → Rooms → Your split calculator now includes floor-plan uploads.
+Open **http://localhost:5173/#/calculator**. The former `/roommate-split/` address
+redirects to the same calculator.
+
+1. Enter apartment rent, bedroom count, and optional monthly bills, additional fees,
+   and move-in costs.
+2. In Rooms, optionally upload an image, HEIC, or PDF. Review the detected room
+   names and dimensions. Enter or correct each room’s length and width; floor area is calculated
+   automatically and shown in both ft² and m². Choose feet
+   or meters; values are stored in feet so switching units does not change rent.
+3. Set each space's type and occupancy, private bathroom, and optional preference
+   multiplier. Use 0 occupants for empty rooms or shared common spaces. Add names
+   and optional monthly budgets.
+4. View the split. Monthly bills default to equal shares; each bill can instead use
+   custom percentages or be paid by one resident. Copy a summary, share a plan,
+   or download its calculation breakdown.
+
+Uploaded files stay in the current tab. The preview survives navigation between
+Rentwise pages and calculator steps. Room details persist in browser storage and
+share links; the uploaded file itself is never included in a share link. Review
+OCR results before continuing, especially small or unclear printed dimensions.
+
 ## Calculation rules
 
-- Room-based estimates: common spaces account for 35%, 50%, or 65% of rent for Small, Average, or Large. This share is split equally per resident. The remaining rent follows each room's adjusted area.
-- Bedroom size presets: Small = 80 sq ft, Medium = 120 sq ft, Large = 180 sq ft. Exact measurements can be entered in More room details.
-- Effective room area multiplies actual area by these optional adjustments: no windows ×0.90, large windows ×1.05; no closet ×0.95, large closet ×1.08; private half bath ×1.06, private full bath ×1.12. Standard features use ×1.
-- Equal mode divides rent equally per person. A two-person room pays two shares.
-- Bills and household application fees are split equally per person. Deposits follow the rent allocation.
-- Shared rooms divide their room costs between occupants; any cent differences appear in the displayed per-person range.
-- Move-in: deposit + total application fees + optional first month of rent and bills. The deposit is separate from recurring monthly costs.
-- Whole-cent allocation preserves household, room, and resident totals exactly.
-- Old share links using the original size-only method remain readable.
-
-The interface references [Splitwise's rent calculator](https://www.splitwise.com/calculators/rent). The room estimate formula above is Rentwise's own transparent model; it does not reproduce Splitwise's algorithm.
+- New room-adjusted calculations use the Roommate Split algorithm: occupied area
+  × space privacy × bathroom × preference. Enclosed rooms count 100% of area,
+  open dens/lofts 80%, and living-room sleeping spaces 70%. A private bathroom
+  multiplies the score by 1.1. Windows and closet sizes do not change this formula.
+- Each room's weight is divided equally among its occupants. Rent is allocated
+  directly to residents in whole cents using largest remainder, with earlier
+  residents breaking ties. Empty spaces have zero weight.
+- Equal mode divides rent per resident regardless of room size.
+- Each recurring bill is allocated separately according to its selected split:
+  equal per resident, custom percentages adding to 100%, or a single resident.
+- Deposits follow rent weights. Application fees are equal per resident. Optional
+  first-month rent and bills are added to move-in costs.
+- The results retain Rentwise's whole-dollar presentation, adjusted to preserve
+  household totals. The CSV also lists the exact cents.
+- Older saved/shared plans retain their original formula when viewed. Editing
+  their rooms uses the new room-adjusted formula. The original size/common-space
+  models remain available for interpreting older share links.
 
 ## Checks
 
@@ -51,7 +81,8 @@ Listings, prices, amenities, and commute details are sample data from the suppli
 ## Files
 
 - `index.html`, `styles.css`, `app.js`: interface and browser behavior.
-- `calculator.js`: validated room data, currency allocation, and share-link encoding.
+- `calculator.js`, `roommate-logic.js`: validated room data, rent/bill allocation, and share-link encoding.
+- `floor-plan-upload.js`, `roommate-split/floor-plan.js`: in-calculator uploads and browser-local image/PDF text recognition.
 - `calculator-view.js`, `calculator.css`: the three-step calculator interface.
 - `server.mjs`: dependency-free localhost server that only exposes public app files.
 - `tests/calculator.test.mjs`: money calculations, data validation, and sharing checks.

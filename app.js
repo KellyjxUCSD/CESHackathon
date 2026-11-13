@@ -1,8 +1,9 @@
-import { newPlan, normalizePlan, breakdownRows, encodePlan, decodePlan } from './calculator.js';
-import { calculatorView, liveSplitHTML, featureHint, costLabels, summaryText, rentIsSet } from './calculator-view.js';
+import { newPlan, normalizePlan, breakdownRows, encodePlan, decodePlan, splitError } from './calculator.js';
+import { calculatorView, liveSplitHTML, featureHint, costLabels, summaryText, rentIsSet, roomAreaText } from './calculator-view.js';
 import { apartments, UTC, milesBetween } from './apartments.js';
 import { exploreShell, placeCards, placePage, startingRent } from './explore-view.js';
 import { welcomeView } from './welcome.js';
+import { createFloorPlanUpload } from './floor-plan-upload.js';
 
 const paths = {
   arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
@@ -39,6 +40,23 @@ const filters = { search: '', beds: '', max: '', trolley: false, saved: false, s
 const main = document.querySelector('#main');
 const modal = document.querySelector('#modal');
 let toastTimeout;
+const floorPlanUpload = createFloorPlanUpload({
+  getPlan: () => plan,
+  applyRooms: detected => {
+    const previous = plan.roommates;
+    plan.roommates = detected.map((info, index) => {
+      const existing = previous.find(room => room.name.trim().toLowerCase() === info.name.toLowerCase());
+      const room = existing ? structuredClone(existing) : blankRoom(index);
+      Object.assign(room, { name: info.name, kind: info.kind, length: info.length || '', width: info.width || '', area: info.length && info.width ? info.length * info.width : 0 });
+      if (info.kind === 'living' && !existing) room.occupants = 0;
+      return room;
+    });
+    delete plan.lockedBedrooms;
+    plan.method = 'weighted'; plan.splitVersion = 2;
+    persist();
+    if (currentPage === 'calculator' && step === 2) rerender();
+  },
+});
 
 function toast(message) {
   const element = document.querySelector('#toast');
@@ -309,7 +327,7 @@ function blankRoom(index) {
 function roomWasEdited(room, index) {
   const named = room.name.trim() && room.name.trim() !== `Room ${index + 1}`;
   const namedPeople = (room.names || []).some(name => name.trim());
-  return named || namedPeople || room.area !== 100 || room.occupants !== 1 || room.windows !== 'normal' || room.closet !== 'normal' || room.bath !== 'shared';
+  return named || namedPeople || room.length || room.width || room.kind !== 'bedroom' || room.preference !== 1 || room.budgets.some(value => value !== '') || room.area !== 100 || room.occupants !== 1 || room.windows !== 'normal' || room.closet !== 'normal' || room.bath !== 'shared';
 }
 function applyBedroomCount(count) {
   while (plan.roommates.length < count) plan.roommates.push(blankRoom(plan.roommates.length));
@@ -319,6 +337,7 @@ function applyBedroomCount(count) {
 function startFromRent(id, rent, beds, floorPlan) {
   const place = apartments.find(item => item.id === id);
   if (!place || !Number(rent)) return;
+  floorPlanUpload.reset();
   plan = newPlan();
   plan.property = place.name;
   plan.floorPlan = String(floorPlan || '').slice(0, 80);
@@ -330,14 +349,15 @@ function startFromRent(id, rent, beds, floorPlan) {
   if (currentPage === 'calculator') renderCalculator(); else location.hash = '/calculator';
 }
 function renderCalculator(focus = false) {
-  if (step === 2 && plan.method === 'size') { plan.method = 'rooms'; persist(); }
+  if (step === 2 && ['size','rooms'].includes(plan.method)) { plan.method = 'weighted'; plan.splitVersion = 2; persist(); }
   main.className = 'calculator-page page-container calculator-wizard';
   main.innerHTML = calculatorView(plan, step);
+  floorPlanUpload.mount(main.querySelector('#floor-plan-upload'));
   const form = document.querySelector('#calculator-form');
   form.addEventListener('submit', event => {
     event.preventDefault();
     if (!validateForm() || step === 3) return;
-    if (step === 1 && plan.method === 'size') plan.method = 'rooms';
+    if (step === 1 && plan.method === 'size') { plan.method = 'weighted'; plan.splitVersion = 2; }
     step = step === 1 ? 2 : 3;
     persist(); renderCalculator(true);
     window.scrollTo({ top: 0 });
@@ -372,8 +392,23 @@ function rerender(focusSelector) {
   window.scrollTo({ top: y });
   if (focusSelector) main.querySelector(focusSelector)?.focus();
 }
+function billSetting(id) {
+  if (id.startsWith('extra')) return plan.extraFees[Number(id.slice(5))];
+  return plan.billSplits[id] ||= { split: 'equal', percentages: [] };
+}
 function onCalculatorInput(event) {
   const input = event.target;
+  if (input.dataset.extraLabel !== undefined || input.dataset.extraAmount !== undefined) {
+    const index = Number(input.dataset.extraLabel ?? input.dataset.extraAmount);
+    if (input.dataset.extraLabel !== undefined) plan.extraFees[index].label = input.value;
+    else if (input.validity.valid) plan.extraFees[index].amount = input.value === '' ? 0 : input.valueAsNumber;
+    persist(); refreshPreview(); return;
+  }
+  if (input.dataset.billPercent !== undefined) {
+    const setting = billSetting(input.dataset.billPercent);
+    setting.percentages[Number(input.dataset.resident)] = input.value === '' ? '' : input.valueAsNumber;
+    persist(); rerender(`[data-bill-percent="${input.dataset.billPercent}"][data-resident="${input.dataset.resident}"]`); return;
+  }
   if (input.dataset.money) {
     const key = input.dataset.money;
     if (key === 'rent') plan.rent = input.value === '' ? '' : input.validity.valid ? input.valueAsNumber : plan.rent;
@@ -386,6 +421,20 @@ function onCalculatorInput(event) {
   const index = Number(input.dataset.roomIndex);
   const room = plan.roommates[index];
   if (!room) return;
+  if (input.dataset.dimension || input.hasAttribute('data-preference') || input.dataset.personBudget !== undefined) {
+    if (input.dataset.personBudget !== undefined) {
+      if (input.validity.valid) room.budgets[Number(input.dataset.personBudget)] = input.value === '' ? '' : input.valueAsNumber;
+    } else if (input.hasAttribute('data-preference')) room.preference = input.value === '' ? 0 : input.validity.valid ? input.valueAsNumber : room.preference;
+    else {
+      input.closest('[data-room-card]').querySelectorAll('[data-dimension]').forEach(field => field.setCustomValidity(''));
+      room[input.dataset.dimension] = input.value === '' ? '' : input.validity.valid ? input.valueAsNumber / (plan.dimensionUnit === 'm' ? .3048 : 1) : room[input.dataset.dimension];
+      room.area = room.length && room.width ? room.length * room.width : 0;
+      const card = input.closest('[data-room-card]');
+      card.querySelector('[data-calculated-area]').textContent = roomAreaText(room, plan.dimensionUnit);
+      card.querySelectorAll('[data-dimension]').forEach(field => field.setCustomValidity(room.area > 10000 ? 'Floor area must be 10,000 ft² or less. Check your measurements and units.' : ''));
+    }
+    persist(); refreshPreview(); return;
+  }
   if (input.hasAttribute('data-room-name')) {
     room.name = input.value;
     const heading = main.querySelector(`#room-heading-${index}`);
@@ -394,25 +443,25 @@ function onCalculatorInput(event) {
   } else if (input.dataset.personName !== undefined) {
     room.names[Number(input.dataset.personName)] = input.value;
     persist(); refreshPreview();
-  } else if (input.hasAttribute('data-room-area')) {
-    if (!input.validity.valid) return;
-    room.area = input.valueAsNumber;
-    plan.method = 'rooms';
-    const card = input.closest('[data-room-card]');
-    card.querySelectorAll('input[name^="room-size-"]').forEach(radio => {
-      radio.checked = Number(radio.value) === room.area;
-      radio.closest('.size-row').classList.toggle('selected', radio.checked);
-    });
-    const hint = card.querySelector('[data-size-hint]');
-    const preset = card.querySelector(`input[name^="room-size-"][value="${room.area}"]`);
-    if (hint) hint.textContent = preset ? '' : `Using your measurement: ${room.area} sq ft.`;
-    persist(); refreshPreview();
+
   }
 }
 function onCalculatorChange(event) {
   const input = event.target;
+  if (input.hasAttribute('data-units')) { plan.dimensionUnit = input.value; persist(); rerender('[data-units]'); return; }
+  if (input.dataset.billSplit !== undefined) { billSetting(input.dataset.billSplit).split = input.value; persist(); rerender(`[data-bill-split="${input.dataset.billSplit}"]`); return; }
+  const space = plan.roommates[Number(input.dataset.roomIndex)];
+  if (input.hasAttribute('data-space-kind') || input.hasAttribute('data-occupants')) {
+    if (input.hasAttribute('data-space-kind')) space.kind = input.value;
+    else {
+      space.occupants = Number(input.value);
+      while (space.names.length < space.occupants) { space.names.push(''); space.budgets.push(''); }
+      plan.billSplits = {}; plan.extraFees.forEach(fee => { fee.split = 'equal'; fee.percentages = []; });
+    }
+    persist(); rerender(input.hasAttribute('data-space-kind') ? `[data-space-kind][data-room-index="${input.dataset.roomIndex}"]` : `[data-occupants][data-room-index="${input.dataset.roomIndex}"]`); return;
+  }
   if (input.name === 'method') {
-    plan.method = input.value;
+    plan.method = input.value; plan.splitVersion = 2;
     persist();
     rerender(`input[name="method"][value="${plan.method}"]`);
     return;
@@ -446,22 +495,12 @@ function onCalculatorChange(event) {
     rerender(`[data-shared][data-room-index="${index}"]`);
   } else if (input.dataset.bathOption) {
     room.bath = input.checked ? input.dataset.bathOption : 'shared';
-    plan.method = 'rooms';
+    plan.method = 'weighted'; plan.splitVersion = 2;
     input.closest('[data-room-card]')?.querySelectorAll('[data-bath-option]').forEach(box => { box.checked = box.dataset.bathOption === room.bath; });
-    persist(); refreshPreview();
-  } else if (input.name?.startsWith('room-size-')) {
-    room.area = Number(input.value);
-    plan.method = 'rooms';
-    const card = input.closest('[data-room-card]');
-    card.querySelectorAll('.size-row').forEach(row => row.classList.toggle('selected', row.querySelector('input').checked));
-    const area = card.querySelector('[data-room-area]');
-    if (area) area.value = input.value;
-    const hint = card.querySelector('[data-size-hint]');
-    if (hint) hint.textContent = '';
     persist(); refreshPreview();
   } else if (input.dataset.roomFactor) {
     room[input.dataset.roomFactor] = input.value;
-    plan.method = 'rooms';
+    plan.method = 'weighted'; plan.splitVersion = 2;
     input.closest('fieldset')?.querySelectorAll('.choice').forEach(option => option.classList.toggle('selected', option.querySelector('input').checked));
     persist(); refreshPreview();
   }
@@ -470,7 +509,10 @@ function validateForm() {
   const form = document.querySelector('#calculator-form');
   const invalid = form.querySelector(':invalid');
   if (invalid) { const details = invalid.closest('details'); if (details) details.open = true; }
-  return form.reportValidity();
+  if (!form.reportValidity()) return false;
+  if (step === 2 && plan.roommates.some(room => room.length * room.width > 10000)) { toast('Check room dimensions. Floor area must be 10,000 ft² or less.'); return false; }
+  if (step === 2) { const error = splitError(plan, false); if (error) { toast(error); return false; } }
+  return true;
 }
 
 async function copyText(text, title, success) {
@@ -499,6 +541,10 @@ function downloadBreakdown() {
 document.addEventListener('click', event => {
   const button = event.target.closest('button');
   if (!button) return;
+  if (button.hasAttribute('data-add-space') && plan.roommates.length < 12) { plan.roommates.push(blankRoom(plan.roommates.length)); persist(); rerender(); }
+  if (button.dataset.removeSpace !== undefined && plan.roommates.length > 1) { plan.roommates.splice(Number(button.dataset.removeSpace), 1); plan.billSplits = {}; plan.extraFees.forEach(fee => { fee.split = 'equal'; fee.percentages = []; }); persist(); rerender(); }
+  if (button.hasAttribute('data-add-extra') && plan.extraFees.length < 12) { plan.extraFees.push({id:`extra${plan.extraFees.length}`, label:'Monthly fee', amount:0, split:'equal', percentages:[]}); persist(); rerender(); main.querySelector('[data-details="extra-fees"]').open = true; }
+  if (button.dataset.removeExtra !== undefined) { plan.extraFees.splice(Number(button.dataset.removeExtra),1); plan.extraFees.forEach((fee,index)=>{fee.id=`extra${index}`;}); persist(); rerender(); }
   if (button.dataset.place) location.hash = `/place/${button.dataset.place}`;
   if (button.dataset.split) startFromRent(button.dataset.split, button.dataset.rent, button.dataset.beds, button.dataset.plan);
   if (button.dataset.retry) { rentById.delete(button.dataset.retry); renderPlace(button.dataset.retry); }
@@ -510,12 +556,12 @@ document.addEventListener('click', event => {
     if (target === step || button.disabled) return;
     if (target > 1 && !rentIsSet(plan)) return;
     if (target > step && !validateForm()) return;
-    if (step === 1 && target > 1 && plan.method === 'size') plan.method = 'rooms';
+    if (step === 1 && target > 1 && plan.method === 'size') { plan.method = 'weighted'; plan.splitVersion = 2; }
     step = target; persist(); renderCalculator(true); window.scrollTo({ top: 0 });
   }
   if (button.hasAttribute('data-back')) { step = Math.max(1, step - 1); renderCalculator(true); window.scrollTo({ top: 0 }); }
   if (button.hasAttribute('data-reset')) openModal(`${closeButton()}<div class="text-modal"><h2 id="modal-title">Start over?</h2><p>This clears the rent, the rooms, and the split saved on this device.</p><div class="modal-actions"><button class="text-button" type="button" data-close>Keep this split</button><button class="button button-primary" type="button" data-confirm-reset>Start over</button></div></div>`);
-  if (button.hasAttribute('data-confirm-reset')) { plan = newPlan(); step = 1; persist(); modal.close(); renderCalculator(true); toast('Calculation reset.'); }
+  if (button.hasAttribute('data-confirm-reset')) { floorPlanUpload.reset(); plan = newPlan(); step = 1; persist(); modal.close(); renderCalculator(true); toast('Calculation reset.'); }
   if (button.dataset.confirmBedrooms) { applyBedroomCount(Number(button.dataset.confirmBedrooms)); modal.close(); }
   if (button.hasAttribute('data-custom')) { plan.property = ''; delete plan.floorPlan; delete plan.lockedBedrooms; step = 1; persist(); renderCalculator(); document.querySelector('[data-money="rent"]').focus(); }
   if (button.hasAttribute('data-share')) sharePlan();
@@ -542,11 +588,11 @@ function route() {
   currentPage = path === '/calculator' ? 'calculator' : placeId ? 'place' : (path === '/welcome' || !path || path === '/') ? 'welcome' : 'explore';
   const params = new URLSearchParams(query);
   if (currentPage === 'calculator' && params.has('plan')) {
-    try { plan = decodePlan(params.get('plan')); const sharedStep = Number(params.get('step')); step = [1, 2, 3].includes(sharedStep) ? sharedStep : 3; persist(); toast('Shared plan opened.'); }
+    try { floorPlanUpload.reset(); plan = decodePlan(params.get('plan')); const sharedStep = Number(params.get('step')); step = [1, 2, 3].includes(sharedStep) ? sharedStep : 3; persist(); toast('Shared plan opened.'); }
     catch { step = 1; toast('This link could not be opened.'); }
     history.replaceState(null, '', `${location.pathname}${location.search}#/calculator`);
   }
-  const section = currentPage === 'calculator' ? 'calculator' : 'explore';
+  const section = currentPage === 'calculator' ? 'calculator' : currentPage === 'welcome' ? '' : 'explore';
   document.querySelectorAll('[data-nav]').forEach(link => { if (link.dataset.nav === section) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current'); });
   const place = apartments.find(item => item.id === placeId);
   document.title = `${currentPage === 'calculator' ? 'Rent Calculator' : currentPage === 'welcome' ? 'Welcome' : place ? place.name : 'Apartments near La Jolla'} — Rentwise`;

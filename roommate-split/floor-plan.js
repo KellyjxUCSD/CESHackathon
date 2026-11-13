@@ -1,8 +1,10 @@
+const assetURL = path => new URL(path, import.meta.url).href;
+
 const roomLabel = /\b((?:(?:primary|master|guest|secondary)\s+)?bed\s*(?:room|rm)|living\s*(?:[/&]\s*dining(?:\s+room)?|room|area)|great\s+room|studio|den|loft)\b(?:\s*#?\s*(\d{1,2})(?![\d.'′’″":-]|\s*(?:[x×]|ft\b|feet\b|m\b)))?/gi;
 const measurement = String.raw`(\d+(?:\.\d+)?)\s*(?:(?:['′’]|ft\b|feet\b)\s*(?:(\d{1,2})\s*(?:["″”]|in\b))?|(m)\b)?`;
 const dimensionPair = new RegExp(String.raw`(?<![\w.])` + measurement + String.raw`\s*[x×]\s*` + measurement + String.raw`(?![\w.]|\s*["″”])`, 'gi');
 
-function plausiblePlanSize(length,width){
+export function plausiblePlanSize(length,width){
   const short=Math.min(length,width), long=Math.max(length,width);
   return short>=5 && long<=45 && long/short<=4 && short*long<=1000;
 }
@@ -19,7 +21,7 @@ function normalizePlanDimensions(text){
     .replace(/(^|[^\d.])(\d{2})([0-9])\s*(?=["″”])/g,"$1$2′$3")
     .replace(/(\d+)\s*['′’]\s*(\d{1,2})\s*(?=[x×]|$)/gi,'$1′$2″');
 }
-function planRooms(lines){
+export function planRooms(lines){
   const labels=[], sizes=[];
   function position(line,start,length){
     if(!line.span) return line;
@@ -127,7 +129,7 @@ function planLineOnColoredPanel(line, pixels, width, height){
   return colored>=16;
 }
 
-async function floorPlanText(file,onProgress,onPage=()=>{}, documentMode=false){
+export async function floorPlanText(file,onProgress,onPage=()=>{}, documentMode=false){
   let worker;
   async function stage(message, action){
     try { return await action(); }
@@ -138,17 +140,17 @@ async function floorPlanText(file,onProgress,onPage=()=>{}, documentMode=false){
       await stage('The text recognition library could not load. Open the website through its local preview and try again.',()=>new Promise((resolve,reject)=>{
         if(window.Tesseract){resolve();return;}
         const script=document.createElement('script');
-        script.src='vendor/ocr/tesseract.min.js';
+        script.src=assetURL('vendor/ocr/tesseract.min.js');
         const timer=setTimeout(()=>{script.remove();reject(new Error('Script load timed out'));},15000);
         script.onload=()=>{clearTimeout(timer);resolve();};
         script.onerror=()=>{clearTimeout(timer);script.remove();reject(new Error('Script load failed'));};
         document.head.append(script);
       }));
-      worker=await stage('The text recognition engine could not start. Open the website through its local preview and try again.',()=>Tesseract.createWorker('eng',1,{
-        workerPath:'vendor/ocr/worker.min.js',
+      worker=await stage('The text recognition engine could not start. Open the website through its local preview and try again.',()=>window.Tesseract.createWorker('eng',1,{
+        workerPath:assetURL('vendor/ocr/worker.min.js'),
         workerBlobURL:false,
-        corePath:new URL('vendor/ocr/tesseract-core-lstm.wasm.js',document.baseURI).href,
-        langPath:new URL('vendor/ocr/',document.baseURI).href
+        corePath:assetURL('vendor/ocr/tesseract-core-lstm.wasm.js'),
+        langPath:assetURL('vendor/ocr/')
       }));
       await worker.setParameters({tessedit_pageseg_mode:'11'});
     }
@@ -298,7 +300,7 @@ async function floorPlanText(file,onProgress,onPage=()=>{}, documentMode=false){
             if(!window.heic2any){
               await new Promise((resolve,reject)=>{
                 const script=document.createElement('script');
-                script.src='vendor/heic2any.min.js';
+                script.src=assetURL('vendor/heic2any.min.js');
                 script.onload=resolve;
                 script.onerror=reject;
                 document.head.append(script);
@@ -319,7 +321,7 @@ async function floorPlanText(file,onProgress,onPage=()=>{}, documentMode=false){
       return documentMode?await recognize(enhancedCanvas(canvas,0,0,canvas.width,canvas.height,Math.min(3,Math.max(1,2600/Math.max(canvas.width,canvas.height))),1.25),1,'3'):await recognizePlan(canvas,1);
     }
     const pdfjs=await stage('The PDF reader could not load. Open the website through its local preview and try again.',()=>import('./vendor/pdf/pdf.min.mjs'));
-    pdfjs.GlobalWorkerOptions.workerSrc=new URL('vendor/pdf/pdf.worker.min.mjs',document.baseURI).href;
+    pdfjs.GlobalWorkerOptions.workerSrc=assetURL('vendor/pdf/pdf.worker.min.mjs');
     const pdf=await stage('The PDF could not be opened. If it is password-protected, export an unlocked copy and try again.',async()=>pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false}).promise);
     try{
       const lines=[];

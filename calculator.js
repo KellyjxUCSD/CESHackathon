@@ -1,11 +1,15 @@
+import { calculateRoommateSplit } from './roommate-logic.js';
+export { splitError } from './roommate-logic.js';
+
 const blankNames = () => ['', ''];
+const roomOccupants = room => Number.isInteger(room?.occupants) && room.occupants >= 0 && room.occupants <= 12 ? room.occupants : 1;
 
 export const DEFAULT_PLAN = {
   property: '', rent: '', utilities: 0, internet: 0, parking: 0,
   insurance: 0, deposit: 0, fee: 0, includeFirst: false, lease: 12,
-  method: 'rooms', commonSpace: 'average',
-  roommates: [{ name: 'Room 1', area: 100, occupants: 1, windows: 'normal', closet: 'normal', bath: 'shared', names: blankNames() },
-    { name: 'Room 2', area: 100, occupants: 1, windows: 'normal', closet: 'normal', bath: 'shared', names: blankNames() }],
+  method: 'weighted', splitVersion: 2, commonSpace: 'average', dimensionUnit: 'ft', extraFees: [], billSplits: {},
+  roommates: [{ name: 'Room 1', area: 100, occupants: 1, windows: 'normal', closet: 'normal', bath: 'shared', names: blankNames(), budgets: ['', ''], length: '', width: '', kind: 'bedroom', preference: 1 },
+    { name: 'Room 2', area: 100, occupants: 1, windows: 'normal', closet: 'normal', bath: 'shared', names: blankNames(), budgets: ['', ''], length: '', width: '', kind: 'bedroom', preference: 1 }],
 };
 
 export const newPlan = () => structuredClone(DEFAULT_PLAN);
@@ -25,23 +29,36 @@ export function normalizePlan(value) {
   if (typeof value.property === 'string') plan.property = value.property.slice(0, 100);
   if (typeof value.includeFirst === 'boolean') plan.includeFirst = value.includeFirst;
   if ([9, 12].includes(value.lease)) plan.lease = value.lease;
-  if (['equal', 'size', 'rooms'].includes(value.method)) plan.method = value.method;
+  if (['equal', 'size', 'rooms', 'weighted'].includes(value.method)) plan.method = value.method;
+  if (value.splitVersion === 1 || (['rooms','size','equal'].includes(value.method) && value.splitVersion !== 2)) plan.splitVersion = 1;
+  if (value.dimensionUnit === 'm') plan.dimensionUnit = 'm';
   if (['small', 'average', 'large'].includes(value.commonSpace)) plan.commonSpace = value.commonSpace;
   if (typeof value.floorPlan === 'string') plan.floorPlan = value.floorPlan.slice(0, 80);
-  if (Array.isArray(value.roommates) && value.roommates.length >= 1 && value.roommates.length <= 6) {
+  if (Array.isArray(value.roommates) && value.roommates.length >= 1 && value.roommates.length <= 12) {
     plan.roommates = value.roommates.map((person, index) => ({
       name: typeof person?.name === 'string' ? person.name.slice(0, 40) : `Roommate ${index + 1}`,
-      area: typeof person?.area === 'number' && Number.isFinite(person.area) && person.area >= 1 && person.area <= 10000 ? person.area : 100,
-      occupants: person?.occupants === 2 ? 2 : 1,
+      area: typeof person?.area === 'number' && Number.isFinite(person.area) && person.area >= (value.method === 'weighted' || value.splitVersion === 2 ? 0 : 1) && person.area <= 10000 ? person.area : 100,
+      occupants: value.splitVersion !== 2 && ['rooms','size','equal'].includes(value.method) ? (person?.occupants === 2 ? 2 : 1) : roomOccupants(person),
       windows: ['none', 'normal', 'large'].includes(person?.windows) ? person.windows : 'normal',
       closet: ['none', 'normal', 'large'].includes(person?.closet) ? person.closet : 'normal',
       bath: ['shared', 'half', 'private'].includes(person?.bath) ? person.bath : 'shared',
-      names: [0, 1].map(slot => typeof person?.names?.[slot] === 'string' ? person.names[slot].slice(0, 40) : ''),
+      length: Number.isFinite(Number(person?.length)) && person?.length !== '' && Number(person?.length) > 0 ? Number(person.length) : '',
+      width: Number.isFinite(Number(person?.width)) && person?.width !== '' && Number(person?.width) > 0 ? Number(person.width) : '',
+      kind: ['bedroom', 'open', 'living'].includes(person?.kind) ? person.kind : 'bedroom',
+      preference: typeof person?.preference === 'number' && Number.isFinite(person.preference) && person.preference >= 0 && person.preference <= 100 ? person.preference : 1,
+      budgets: Array.from({length:Math.max(2, roomOccupants(person))}, (_, slot) => typeof person?.budgets?.[slot] === 'number' && Number.isFinite(person.budgets[slot]) && person.budgets[slot] >= 0 && person.budgets[slot] <= 1000000 ? person.budgets[slot] : ''),
+      names: Array.from({length:Math.max(2, roomOccupants(person))}, (_, slot) => typeof person?.names?.[slot] === 'string' ? person.names[slot].slice(0, 40) : ''),
     }));
   }
   if (Number.isInteger(value.lockedBedrooms) && value.lockedBedrooms >= 1 && value.lockedBedrooms <= 6 && plan.roommates.length === value.lockedBedrooms) {
     plan.lockedBedrooms = value.lockedBedrooms;
   }
+  const split = raw => ({
+    split: raw?.split === 'custom' || /^person\d{1,3}$/.test(raw?.split) ? raw.split : 'equal',
+    percentages: Array.isArray(raw?.percentages) ? raw.percentages.slice(0,144).map(value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100 ? value : '') : [],
+  });
+  for (const key of ['utilities','internet','parking','insurance']) if (value.billSplits?.[key]) plan.billSplits[key] = split(value.billSplits[key]);
+  if (Array.isArray(value.extraFees)) plan.extraFees = value.extraFees.slice(0,12).map((item,index) => ({id:`extra${index}`, label:typeof item?.label === 'string' ? item.label.slice(0,60) : 'Monthly fee', amount:typeof item?.amount === 'number' && Number.isFinite(item.amount) && item.amount >= 0 && item.amount <= 1000000 ? Math.round(item.amount*100)/100 : 0, ...split(item)}));
   return plan;
 }
 
@@ -69,6 +86,7 @@ export function allocateCents(cents, weights) {
 
 export function calculate(value) {
   const plan = normalizePlan(value);
+  if (plan.method === 'weighted' || (plan.method === 'equal' && plan.splitVersion === 2)) return calculateRoommateSplit(plan);
   const count = plan.roommates.length;
   const headcount = plan.roommates.reduce((sum, room) => sum + room.occupants, 0);
   const rent = Math.round(plan.rent * 100);
@@ -134,6 +152,7 @@ const sizeLabel = area => SIZE_NAME[area] ? `${SIZE_NAME[area]} (${area})` : Str
 
 function weightLine(trace, room) {
   if (trace.method === 'equal') return `${room.occupants} ÷ ${trace.headcount} = ${figure(room.weight)}`;
+  if (trace.method === 'weighted') return `${figure(room.qualityArea)} ÷ ${figure(trace.totalQualityArea)} = ${figure(room.weight)}`;
   if (trace.method === 'size') return `0.5 ÷ ${trace.count} + 0.5 × (${room.area} ÷ ${trace.totalArea}) = ${figure(room.weight)}`;
   const commonPart = trace.commonShare * room.occupants / trace.headcount;
   const roomPart = (1 - trace.commonShare) * room.qualityArea / trace.totalQualityArea;
@@ -168,6 +187,7 @@ function addSplitTable(rows, cents, weights, labels) {
 export function breakdownRows(value) {
   const plan = normalizePlan(value);
   const result = calculate(plan);
+  if (result.error) return [['Rentwise rent split'], ['Complete your plan', result.error]];
   const trace = result.trace;
   const people = [];
   result.people.forEach((room, index) => {
@@ -214,6 +234,12 @@ export function breakdownRows(value) {
     rows.push(['In plain words', 'Half of the rent is shared equally by the rooms. The other half follows room size.']);
     rows.push(['The formula', 'Share = 0.5 ÷ number of rooms + 0.5 × (this room’s size ÷ all sizes)']);
     rows.push(['All room sizes added together', trace.totalArea]);
+  } else if (trace.method === 'weighted') {
+    rows.push(['In plain words', 'Rent follows the size and privacy of occupied sleeping spaces. People sharing a space divide its weight equally.']);
+    rows.push(['A room’s score', 'Area × privacy factor × bathroom factor × preference multiplier']);
+    rows.push(['Privacy', 'Enclosed room × 1; open den or loft × 0.8; living-room sleeping space × 0.7']);
+    rows.push(['Bathroom', 'Shared × 1; private × 1.1']);
+    rows.push(['All occupied room scores', trace.totalQualityArea]);
   } else {
     const sharedWords = { small: 'Small shared spaces. 35% of the rent is split by person.', average: 'Average shared spaces. 50% of the rent is split by person.', large: 'Large shared spaces. 65% of the rent is split by person.' };
     rows.push(['In plain words', 'Part of the rent pays for the living room, kitchen, and shared bathrooms, so that part is split by person. The rest follows each room.']);
@@ -239,25 +265,29 @@ export function breakdownRows(value) {
 
   rows.push(['Step 2', 'Turn the rent shares into exact cents']);
   rows.push(['In plain words', 'Rent is counted in cents so no money is lost. Keep the whole cents. Give each leftover cent to the room with the biggest fraction. If two fractions match, the earlier room gets that cent.']);
-  addSplitTable(rows, trace.rentCents, trace.weights, trace.rooms.map(room => room.name));
+  addSplitTable(rows, trace.rentCents, trace.perResident ? trace.residentRentWeights : trace.weights, trace.perResident ? trace.residents.map(person => person.label) : trace.rooms.map(room => room.name));
   rows.push([]);
 
   rows.push(['Step 3', 'Split the monthly bills by person']);
-  rows.push(['In plain words', 'Bills do not follow room size. A room with two people pays for two people.']);
-  addSplitTable(rows, trace.extrasCents, trace.rooms.map(room => room.occupants), trace.rooms.map(room => room.name));
+  rows.push(['In plain words', trace.perResident ? 'Each recurring bill follows its selected split: equal, custom percentages, or one person.' : 'Bills do not follow room size. A room with two people pays for two people.']);
+  if (trace.perResident) {
+    rows.push(['Bill', 'Split', ...trace.residents.map(person => person.label)]);
+    trace.bills.filter(bill => bill.cents).forEach(bill => rows.push([bill.label, bill.split || 'equal', ...bill.parts.map(money)]));
+  } else addSplitTable(rows, trace.extrasCents, trace.rooms.map(room => room.occupants), trace.rooms.map(room => room.name));
   rows.push([]);
 
   rows.push(['Step 4', 'Split the deposit and the fees']);
   rows.push(['In plain words', 'The deposit uses the same shares as the rent. Fees are split by person.']);
   rows.push(['Deposit']);
-  addSplitTable(rows, trace.depositCents, trace.weights, trace.rooms.map(room => room.name));
+  addSplitTable(rows, trace.depositCents, trace.perResident ? trace.residentRentWeights : trace.weights, trace.perResident ? trace.residents.map(person => person.label) : trace.rooms.map(room => room.name));
   rows.push(['Application fees']);
-  addSplitTable(rows, trace.feeCents, trace.rooms.map(room => room.occupants), trace.rooms.map(room => room.name));
+  addSplitTable(rows, trace.feeCents, trace.perResident ? trace.residents.map(() => 1) : trace.rooms.map(room => room.occupants), trace.perResident ? trace.residents.map(person => person.label) : trace.rooms.map(room => room.name));
   rows.push([]);
 
   rows.push(['Step 5', 'Split a shared room between the people in it']);
   const shared = result.people.filter(room => room.occupants > 1);
-  if (!shared.length) rows.push(['In plain words', 'Every room has one person, so the room’s amount is already that person’s amount.']);
+  if (trace.perResident) rows.push(['In plain words', 'Shared-room resident weights are divided equally before cent allocation. The exact resident amounts appear below.']);
+  else if (!shared.length) rows.push(['In plain words', 'Every room has one person, so the room’s amount is already that person’s amount.']);
   else {
     rows.push(['In plain words', 'Two people in one room split that room’s cents evenly. An odd leftover cent goes to the first person.']);
     rows.push(['Room', 'What is being split', 'Cents', 'Person 1', 'Person 2']);
@@ -300,7 +330,7 @@ export function encodePlan(plan) {
 }
 
 export function decodePlan(encoded) {
-  if (typeof encoded !== 'string' || encoded.length > 10000) throw new Error('Invalid plan');
+  if (typeof encoded !== 'string' || encoded.length > 100000) throw new Error('Invalid plan');
   const base64 = encoded.replaceAll('-', '+').replaceAll('_', '/');
   const bytes = Uint8Array.from(atob(base64), char => char.charCodeAt(0));
   return normalizePlan(JSON.parse(new TextDecoder().decode(bytes)));

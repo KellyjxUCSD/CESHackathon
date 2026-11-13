@@ -45,14 +45,14 @@ const server = http.createServer(async (req, res) => {
       }
       return;
     }
-    if (pathname === '/roommate-split') {
-      res.writeHead(308, { Location: '/roommate-split/' }).end();
+    if (['/roommate-split', '/roommate-split/', '/roommate-split/index.html'].includes(pathname)) {
+      res.writeHead(308, { Location: '/#/calculator' }).end();
       return;
     }
-    const relative = pathname === '/' ? 'index.html' : pathname === '/roommate-split/' ? 'roommate-split/index.html' : pathname.slice(1);
+    const relative = pathname === '/' ? 'index.html' : pathname.slice(1);
     const roommateAsset = /^roommate-split\/(?:index\.html|app\.js|floor-plan\.js|style\.css|vendor\/(?:heic2any\.min\.js|(?:ocr|pdf)\/[\w.-]+\.(?:m?js|wasm|gz)))$/.test(relative);
     // Serve only public app files; never expose repository metadata or source documents.
-    if (!roommateAsset && !['index.html', 'app.js', 'calculator.js', 'calculator-view.js', 'apartments.js', 'explore-view.js', 'welcome.js', 'styles.css', 'calculator.css', 'explore.css', 'welcome.css'].includes(relative) && !/^assets\/[a-zA-Z0-9._-]+$/.test(relative)) {
+    if (!roommateAsset && !['index.html', 'app.js', 'calculator.js', 'calculator-view.js', 'apartments.js', 'explore-view.js', 'welcome.js', 'styles.css', 'calculator.css', 'explore.css', 'welcome.css', 'roommate-logic.js', 'floor-plan-upload.js'].includes(relative) && !/^assets\/[a-zA-Z0-9._-]+$/.test(relative)) {
       res.writeHead(404).end('Not found'); return;
     }
     const file = path.join(root, relative);

@@ -110,8 +110,9 @@ test('equal rooms produce equal rent and a private bathroom increases that roomâ
   assert.equal(privateBath.people[0].rent + privateBath.people[1].rent, privateBath.rent);
 });
 
-test('larger shared spaces reduce the rent gap between small and large bedrooms', () => {
+test('legacy shared plans retain their common-space algorithm', () => {
   const plan = newPlan();
+  plan.method = 'rooms'; plan.splitVersion = 1;
   plan.rent = 3600;
   plan.roommates[0].area = 80;
   plan.roommates[1].area = 180;
@@ -159,8 +160,8 @@ test('equal per-person rent gives a two-person room twice a single-person room',
   const result = calculate(plan);
   assert.equal(result.people[0].rent, 100000);
   assert.equal(result.people[1].rent, 200000);
-  assert.equal(result.people[0].bills, 11000);
-  assert.equal(result.people[1].bills, 22000);
+  assert.equal(result.people[0].bills, 11001);
+  assert.equal(result.people[1].bills, 21999);
 });
 
 test('room settings validate and round-trip in share links', () => {
@@ -192,7 +193,7 @@ test('displayed dollars add up and each amount says why', () => {
   assert.match(shares.people[0].reason, /Larger room/);
   assert.match(shares.people[0].reason, /private bath/);
   assert.match(shares.people[1].reason, /Smaller room/);
-  assert.match(shares.people[1].reason, /Two people share the common area/);
+  assert.match(shares.people[1].reason, /2 people split this spaceâ€™s share/);
   assert.equal(shares.people.reduce((sum, person) => sum + person.monthlyDollars, 0), shares.totalMonthly);
   assert.equal(shares.totalMonthly, Math.round(calculate(plan).monthly / 100));
   assert.equal(shares.people.reduce((sum, person) => sum + person.moveInDollars, 0), shares.totalMoveIn);

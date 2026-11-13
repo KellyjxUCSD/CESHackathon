@@ -1,4 +1,40 @@
 /* A quiet, three-step rent calculator. Explore keeps its existing design. */
+.floor-plan-card { margin-top: 22px; margin-bottom: 22px; }
+.floor-plan-card h2 { margin-bottom: 10px; }
+.floor-plan-card .group-note { line-height: 1.8; }
+.floor-plan-upload .upload-field { padding: 17px; border: 1px dashed #b9c1cd; border-radius: 8px; background: var(--fill); }
+.floor-plan-upload input[type=file] { height: auto; min-height: 44px; padding: 8px; font-size: 12px; }
+.floor-plan-upload input::file-selector-button { padding: 7px 10px; margin-right: 10px; border: 0; border-radius: 5px; background: var(--ink); color: var(--paper); font: inherit; cursor: pointer; }
+.upload-status:not(:empty) { margin-top: 14px; font-size: 12px; color: var(--muted); }
+.upload-preview img, .upload-preview iframe, .upload-preview canvas { display: block; width: 100%; max-height: 440px; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; margin-top: 14px; }
+.upload-preview iframe { height: 380px; }
+.upload-preview canvas { height: auto; max-height: none; margin: 0; }
+.upload-preview a { display: inline-block; font-size: 11px; color: var(--muted); margin-top: 10px; text-decoration: underline; text-underline-offset: 3px; }
+.upload-preview figure { margin: 16px 0; }
+.upload-preview figcaption, .upload-preview ol { font-size: 11px; color: var(--muted); margin-top: 8px; }
+.upload-drawing { position: relative; }
+.upload-pin { position: absolute; transform: translate(-50%, -50%); min-width: 21px; padding: 2px 5px; border-radius: 999px; background: var(--ink); color: var(--paper); box-shadow: 0 0 0 2px var(--paper); text-align: center; font-size: 11px; font-weight: 600; }
+.measurement-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 20px 0 14px; color: var(--muted); font-size: 12px; }
+.measurement-toolbar select { min-height: 38px !important; font-size: 12px !important; }
+.measurement-toolbar .field { margin: 0; }
+.calculator-wizard .space-type { margin-top: 20px; }
+.calculator-wizard .occupancy-field { margin-top: 22px; }
+.calculator-wizard .private-bath { font-size: 13px; display: flex; gap: 10px; align-items: center; margin: 20px 0; }
+.calculator-wizard .private-bath input { width: 16px; height: 16px; accent-color: var(--ink); }
+.calculator-wizard .room-measurements { margin-top: 18px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.calculator-wizard .room-measurements .choice-hint { margin-bottom: 16px; line-height: 1.8; }
+.calculator-wizard .add-space { min-height: 42px; margin-top: 20px; }
+.calculator-wizard .remove-space { font-size: 11px; margin-top: 15px; color: var(--muted); }
+.calculator-wizard .extra-fee-row { display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 12px; align-items: end; margin-bottom: 18px; }
+.calculator-wizard .extra-fee-row .text-button { margin-bottom: 11px; font-size: 11px; }
+.calculator-wizard .extra-fee-row .field { margin: 0; }
+.calculator-wizard .bill-allocation { margin-top: 20px; }
+.calculator-wizard .bill-allocation .field { margin-bottom: 16px; }
+.calculator-wizard .person-budget { grid-column: 1 / -1; margin-top: 5px; color: var(--muted); font-size: 11px; }
+@media (max-width: 520px) {
+  .calculator-wizard .extra-fee-row { grid-template-columns: 1fr; gap: 9px; }
+  .calculator-wizard .extra-fee-row .text-button { justify-self: start; }
+}
 .calculator-wizard {
   max-width: 704px;
   padding-top: 30px;
@@ -251,3 +287,15 @@
   .wizard-progress, .wizard-actions, .wizard-bottom, .share-actions { display: none !important; }
   .wizard-card { border: 0; padding: 0; }
 }
+
+/* Measured floor area, using the calculator's existing fields and tokens. */
+.calculator-wizard .room-dimensions { margin-top: 23px; }
+.calculator-wizard .room-dimensions legend { font-size: 13px; font-weight: 500; margin-bottom: 8px; }
+.calculator-wizard .room-dimensions .group-note { font-size: 12px; margin-bottom: 15px; }
+.dimension-inputs { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: end; gap: 12px; }
+.dimension-inputs .field { margin: 0; }
+.dimension-times { color: var(--muted); padding-bottom: 12px; }
+.calculated-area { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; margin-top: 14px; padding: 13px 15px; border-radius: 8px; background: var(--fill); font-size: 12px; }
+.calculated-area > span { color: var(--muted); }
+.calculated-area output { font-weight: 600; font-variant-numeric: tabular-nums; }
+.unit-conversion-note { margin: -5px 0 18px; color: var(--muted); font-size: 11px; line-height: 1.8; }
