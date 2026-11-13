@@ -22,7 +22,7 @@ const plan = (fields) => ({
   roomDimensions: Array.isArray(fields.roomDimensions) ? fields.roomDimensions : null,
 });
 
-export function parseJonah(html) {
+export function parseJonah(html, pageUrl) {
   const match = String(html).match(/<script type="application\/json" id="jd-fp-data-script-app">([\s\S]*?)<\/script>/);
   if (!match) return null;
   const data = JSON.parse(match[1]);
@@ -36,8 +36,21 @@ export function parseJonah(html) {
       low: price.priceLow || item.rent_min,
       high: price.priceHigh || item.rent_max,
       available: Number(item.availability_count),
+      url: item.slug ? new URL(`${item.slug}/`, pageUrl).href : null,
     });
   });
+}
+
+async function addJonahImages(plans = []) {
+  await Promise.all(plans.map(async item => {
+    if (!item.url) return;
+    try {
+      const page = await readText(item.url);
+      const image = page.match(/https?:\\?\/\\?\/[^"']+?(?:Listing|Detail)[^"']+?\.(?:jpe?g|png|webp)/i)?.[0];
+      if (image) item.image = image.replaceAll('\\/', '/');
+    } catch { /* Keep the plan usable when an individual image is unavailable. */ }
+  }));
+  return plans;
 }
 
 export function parseRealpage(data) {
@@ -199,7 +212,7 @@ export async function scrapeRents(place) {
     throw new Error('Their website asked for a browser check.');
   }
   let plans = null;
-  if (place.kind === 'jonah') plans = parseJonah(page);
+  if (place.kind === 'jonah') plans = await addJonahImages(parseJonah(page, place.website));
   if (place.kind === 'realpage') {
     const propertyId = page.match(/propertyId\s*=\s*'(\d+)'/)?.[1];
     const apiKey = page.match(/apiKey:\s*'([0-9a-f-]{36})'/i)?.[1];
