@@ -1,4 +1,4 @@
-# Rentwise
+# TritonRent
 
 Explore apartments around La Jolla and UC San Diego, then split rent and bills between roommates.
 
@@ -41,7 +41,7 @@ docs/
 - Rent splitting by room size and features, or equally per person. Shared rooms, bills, deposits, and application fees are supported.
 - Local browser storage, shareable plan links, and CSV downloads.
 
-The rent calculator uses Rentwise's own room-weighting model. Its explanation is available with the results. Shares are allocated in whole cents so room and household totals reconcile.
+The rent calculator uses TritonRent's own room-weighting model. Its explanation is available with the results. Shares are allocated in whole cents so room and household totals reconcile.
 
 Share links contain a snapshot of the plan, including names and amounts. Localhost links work only on the same computer; cross-device sharing requires hosting the app at an accessible address.
 
@@ -65,7 +65,7 @@ redirects to the same calculator.
    or download its calculation breakdown.
 
 Uploaded files stay in the current tab. The preview survives navigation between
-Rentwise pages and calculator steps. Room details persist in browser storage and
+TritonRent pages and calculator steps. Room details persist in browser storage and
 share links; the uploaded file itself is never included in a share link. Review
 OCR results before continuing, especially small or unclear printed dimensions.
 
@@ -83,7 +83,7 @@ OCR results before continuing, especially small or unclear printed dimensions.
   equal per resident, custom percentages adding to 100%, or a single resident.
 - Deposits follow rent weights. Application fees are equal per resident. Optional
   first-month rent and bills are added to move-in costs.
-- The results retain Rentwise's whole-dollar presentation, adjusted to preserve
+- The results retain TritonRent's whole-dollar presentation, adjusted to preserve
   household totals. The CSV also lists the exact cents.
 - Older saved/shared plans retain their original formula when viewed. Editing
   their rooms uses the new room-adjusted formula. The original size/common-space

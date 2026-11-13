@@ -1,11 +1,12 @@
 import { allocateCents } from './calculator.js';
 
+export const DEFAULT_FACTORS = { bedroom: 1, open: 0.8, living: 0.7, privateBath: 1.1 };
 export const BILL_LABELS = { utilities: 'Utilities', internet: 'Internet', parking: 'Parking', insurance: 'Insurance & other' };
 export const billItems = plan => [
   ...Object.entries(BILL_LABELS).map(([id, label]) => ({ id, label, amount: plan[id], ...(plan.billSplits?.[id] || {}) })),
   ...(plan.extraFees || []),
 ];
-export const spaceWeight = room => room.area * ({bedroom:1, open:.8, living:.7}[room.kind] || 1) * (room.bath === 'shared' ? 1 : 1.1) * room.preference;
+export const spaceWeight = (room, factors = DEFAULT_FACTORS) => room.area * (factors[room.kind] ?? factors.bedroom ?? 1) * (room.bath === 'shared' ? 1 : Number(factors.privateBath ?? 1.1)) * room.preference;
 export const residentList = plan => plan.roommates.flatMap((room, roomIndex) => Array.from({length:room.occupants}, (_, slot) => ({
   roomIndex, slot, label: room.names?.[slot]?.trim() || (room.occupants === 1 ? room.name : `${room.name}, person ${slot + 1}`),
 })));
@@ -32,7 +33,8 @@ export function calculateRoommateSplit(plan) {
   const error = splitError(plan);
   const rent = Math.round(Number(plan.rent) * 100);
   const equal = residents.map(() => 1);
-  const weights = residents.map(({roomIndex}) => plan.method === 'equal' ? 1 : spaceWeight(plan.roommates[roomIndex]) / plan.roommates[roomIndex].occupants);
+  const factors = plan.factors || DEFAULT_FACTORS;
+  const weights = residents.map(({roomIndex}) => plan.method === 'equal' ? 1 : spaceWeight(plan.roommates[roomIndex], factors) / plan.roommates[roomIndex].occupants);
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
   const safeWeights = totalWeight > 0 ? weights : equal;
   const rentParts = allocateCents(rent, safeWeights);
@@ -54,16 +56,16 @@ export function calculateRoommateSplit(plan) {
       return {rent, bills:billsTotal, monthly:rent + billsTotal, moveIn:depositParts[index] + feeParts[index] + (plan.includeFirst ? rent + billsTotal : 0)};
     });
     const sum = field => members.reduce((total, person) => total + person[field], 0);
-    const roomWeight = plan.method === 'equal' ? room.occupants : room.occupants ? spaceWeight(room) : 0;
+    const roomWeight = plan.method === 'equal' ? room.occupants : room.occupants ? spaceWeight(room, factors) : 0;
     return {name:room.name.trim() || `Room ${roomIndex + 1}`, occupants:room.occupants, residents:members,
       rent:sum('rent'), bills:sum('bills'), monthly:sum('monthly'), moveIn:sum('moveIn'),
       deposit:depositParts.slice(cursor-room.occupants,cursor).reduce((a,b)=>a+b,0),
       fee:feeParts.slice(cursor-room.occupants,cursor).reduce((a,b)=>a+b,0), weight:totalWeight ? roomWeight / totalWeight : 0};
   });
-  const rooms = plan.roommates.map((room,index) => ({...room, name:people[index].name, qualityArea:room.occupants ? spaceWeight(room) : 0, weight:people[index].weight}));
+  const rooms = plan.roommates.map((room,index) => ({...room, name:people[index].name, qualityArea:room.occupants ? spaceWeight(room, factors) : 0, weight:people[index].weight}));
   return {rent, extras, monthly:rent + extras, people, headcount, error,
     moveIn:people.reduce((sum, room) => sum + room.moveIn, 0), leaseTotal:(rent + extras) * plan.lease,
-    trace:{method:plan.method, count:plan.roommates.length, headcount, rooms,
+    trace:{method:plan.method, factors:{...factors}, count:plan.roommates.length, headcount, rooms,
       totalArea:plan.roommates.reduce((sum,room)=>sum+room.area,0), totalQualityArea:rooms.reduce((sum,room)=>sum+room.qualityArea,0),
       weights:people.map(room=>room.weight), rentCents:rent, extrasCents:extras, depositCents:deposit, feeCents:fee, includeFirst:plan.includeFirst,
       bills, residents, residentRentWeights:safeWeights, perResident:true}};

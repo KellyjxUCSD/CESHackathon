@@ -82,6 +82,21 @@ test('pre-integration share links retain their original calculation', () => {
   assert.deepEqual(calculate(restored).people.map(room=>room.rent),[150000,250000]);
 });
 
+test('custom factor weights change the split and travel with the plan', () => {
+  const plan = newPlan();
+  plan.rent = 2000;
+  plan.factors.privateBath = 2;
+  plan.roommates[0].bath = 'private';
+  const result = calculate(plan);
+  assert.ok(result.people[0].rent > result.people[1].rent);
+  const restored = decodePlan(encodePlan(plan));
+  assert.equal(restored.factors.privateBath, 2);
+  assert.equal(calculate(restored).people[0].rent, result.people[0].rent);
+  const csv = breakdownRows(plan).map(row => row.join(' ')).join('\n');
+  assert.match(csv, /private × 2/);
+  assert.match(csv, /100 × 1 × 2 × 1/);
+});
+
 test('floor-plan parsing keeps printed measurements and rejects implausible sizes', () => {
   const lines = [
     {text:'Bedroom 1',page:1,x:.25,y:.20}, {text:'12′ 6″ × 10′ 0″',page:1,x:.25,y:.23},

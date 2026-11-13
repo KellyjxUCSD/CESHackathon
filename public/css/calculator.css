@@ -115,6 +115,9 @@
 .optional-costs { border-top: 1px solid var(--line); margin-top: 28px; }
 .optional-costs + .optional-costs { margin-top: 0; }
 .group-note { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
+.weight-factors { margin: 4px 0 18px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.weight-factors .group-note { margin-top: 2px; line-height: 1.6; }
+.download-note { margin: 4px 0 14px; max-width: 62ch; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .wizard-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 19px 18px; padding: 7px 0 6px; }
 .optional-costs .checkbox-label { font-size: 11px; margin-top: 13px; }
 .wizard-actions { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--line); }

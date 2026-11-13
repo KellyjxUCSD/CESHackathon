@@ -12,3 +12,10 @@ dialog{padding:0;border:1px solid var(--line);border-radius:14px;background:whit
 @media(max-width:360px){.header-inner{padding-left:16px;padding-right:16px;gap:15px}.main-nav{gap:15px}.main-nav a,.nav-about{font-size:11px}.page-container{padding-left:16px;padding-right:16px}.page-intro h1{font-size:25px}.filter-chip{font-size:9px;padding:6px 9px}.property-info{padding:18px}.property-info h2{font-size:16px}.cost-card,.live-summary{padding:19px}.cost-row{padding:11px}.cost-row>span:first-child{font-size:11px}.cost-row>.currency-input{width:95px}.section-heading h2{font-size:16px;gap:7px}.section-heading>span{font-size:8px}.section-number{width:23px;height:23px;font-size:11px}.summary-move-in>strong{font-size:24px}.summary-breakdown>div,.summary-breakdown strong{font-size:12px}.area-field{width:97px}.method-option{padding:12px 8px;font-size:10px}.result-table td strong{font-size:13px}.result-table td small{font-size:8px}.result-table tfoot td,.result-table tfoot th{font-size:10px}.result-table thead th{font-size:9px}.result-table{font-size:10px}.form-actions .button{font-size:11px;padding:10px 12px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 @media print{.site-header,.site-footer,.back-link,.calculator-aside,.form-actions,.share-actions,.fine-print,.toast{display:none!important}body{background:white}.page-container{max-width:none}.calculator-layout{display:block}.cost-card{box-shadow:none;border:0;padding:0}.result-table td,.result-table th{font-size:12px}.result-table td small{font-size:10px}}
+.brand{display:inline-flex;align-items:center;gap:8px}
+.brand .logo{display:block;width:22px;height:22px;flex:none}
+dialog{overflow:auto}
+.text-modal h3{font-size:15px;letter-spacing:-.2px;color:var(--ink);margin:22px 0 8px}
+.about-modal h3{margin:14px 0 4px}
+.about-modal>p{margin-bottom:8px}
+.text-modal a{color:var(--ink);text-decoration:underline;text-underline-offset:3px}

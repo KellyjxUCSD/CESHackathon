@@ -1,4 +1,4 @@
-# Rentwise design
+# TritonRent design
 
 Keep the app minimal, direct, and easy to understand. The user's neutral Explore and Calculator references guide the visual style. The [Splitwise rent calculator](https://www.splitwise.com/calculators/rent) informs the guided rent-splitting flow.
 

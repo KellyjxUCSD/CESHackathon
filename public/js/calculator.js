@@ -1,4 +1,4 @@
-import { calculateRoommateSplit } from './roommate-logic.js';
+import { calculateRoommateSplit, DEFAULT_FACTORS } from './roommate-logic.js';
 export { splitError } from './roommate-logic.js';
 
 const blankNames = () => ['', ''];
@@ -8,6 +8,7 @@ export const DEFAULT_PLAN = {
   property: '', rent: '', utilities: 0, internet: 0, parking: 0,
   insurance: 0, deposit: 0, fee: 0, includeFirst: false, lease: 12,
   method: 'weighted', splitVersion: 2, commonSpace: 'average', dimensionUnit: 'ft', extraFees: [], billSplits: {},
+  factors: { ...DEFAULT_FACTORS },
   roommates: [{ name: 'Room 1', area: 100, occupants: 1, windows: 'normal', closet: 'normal', bath: 'shared', names: blankNames(), budgets: ['', ''], length: '', width: '', kind: 'bedroom', preference: 1 },
     { name: 'Room 2', area: 100, occupants: 1, windows: 'normal', closet: 'normal', bath: 'shared', names: blankNames(), budgets: ['', ''], length: '', width: '', kind: 'bedroom', preference: 1 }],
 };
@@ -33,6 +34,13 @@ export function normalizePlan(value) {
   if (value.splitVersion === 1 || (['rooms','size','equal'].includes(value.method) && value.splitVersion !== 2)) plan.splitVersion = 1;
   if (value.dimensionUnit === 'm') plan.dimensionUnit = 'm';
   if (['small', 'average', 'large'].includes(value.commonSpace)) plan.commonSpace = value.commonSpace;
+  plan.factors = { ...DEFAULT_FACTORS };
+  if (value.factors && typeof value.factors === 'object') {
+    for (const key of Object.keys(DEFAULT_FACTORS)) {
+      const factor = value.factors[key];
+      if (typeof factor === 'number' && Number.isFinite(factor) && factor >= 0 && factor <= 20) plan.factors[key] = Math.round(factor * 10000) / 10000;
+    }
+  }
   if (typeof value.floorPlan === 'string') plan.floorPlan = value.floorPlan.slice(0, 80);
   if (Array.isArray(value.roommates) && value.roommates.length >= 1 && value.roommates.length <= 12) {
     plan.roommates = value.roommates.map((person, index) => ({
@@ -187,7 +195,7 @@ function addSplitTable(rows, cents, weights, labels) {
 export function breakdownRows(value) {
   const plan = normalizePlan(value);
   const result = calculate(plan);
-  if (result.error) return [['Rentwise rent split'], ['Complete your plan', result.error]];
+  if (result.error) return [['TritonRent rent split'], ['Complete your plan', result.error]];
   const trace = result.trace;
   const people = [];
   result.people.forEach((room, index) => {
@@ -198,7 +206,7 @@ export function breakdownRows(value) {
   const methodName = trace.method === 'equal' ? 'Everyone pays the same' : trace.method === 'size' ? 'Half equal, half by room size' : 'By room size and features';
   const rows = [];
 
-  rows.push(['Rentwise rent split']);
+  rows.push(['TritonRent rent split']);
   rows.push(['Start here', 'The first table is the answer. The steps under it show the math.']);
   rows.push([]);
   rows.push(['The answer']);
@@ -235,10 +243,11 @@ export function breakdownRows(value) {
     rows.push(['The formula', 'Share = 0.5 ÷ number of rooms + 0.5 × (this room’s size ÷ all sizes)']);
     rows.push(['All room sizes added together', trace.totalArea]);
   } else if (trace.method === 'weighted') {
+    const factors = trace.factors || DEFAULT_FACTORS;
     rows.push(['In plain words', 'Rent follows the size and privacy of occupied sleeping spaces. People sharing a space divide its weight equally.']);
     rows.push(['A room’s score', 'Area × privacy factor × bathroom factor × preference multiplier']);
-    rows.push(['Privacy', 'Enclosed room × 1; open den or loft × 0.8; living-room sleeping space × 0.7']);
-    rows.push(['Bathroom', 'Shared × 1; private × 1.1']);
+    rows.push(['Privacy', `Enclosed room × ${figure(factors.bedroom)}; open den or loft × ${figure(factors.open)}; living-room sleeping space × ${figure(factors.living)}`]);
+    rows.push(['Bathroom', `Shared × 1; private × ${figure(factors.privateBath)}`]);
     rows.push(['All occupied room scores', trace.totalQualityArea]);
   } else {
     const sharedWords = { small: 'Small shared spaces. 35% of the rent is split by person.', average: 'Average shared spaces. 50% of the rent is split by person.', large: 'Large shared spaces. 65% of the rent is split by person.' };
@@ -255,9 +264,14 @@ export function breakdownRows(value) {
   }
   rows.push(['Room', 'People', 'Size', 'How this share was calculated', 'Share', 'Rent before rounding']);
   trace.rooms.forEach(room => {
+    const factors = trace.factors || DEFAULT_FACTORS;
+    const privacy = factors[room.kind] ?? factors.bedroom;
+    const bath = room.bath === 'shared' ? 1 : factors.privateBath;
     const score = trace.method === 'rooms'
       ? `${room.area} × ${room.windowFactor} × ${room.closetFactor} × ${room.bathFactor} = ${figure(room.qualityArea)}. ${weightLine(trace, room)}`
-      : weightLine(trace, room);
+      : trace.method === 'weighted'
+        ? `${figure(room.area)} × ${figure(privacy)} × ${figure(bath)} × ${figure(room.preference)} = ${figure(room.qualityArea)}. ${weightLine(trace, room)}`
+        : weightLine(trace, room);
     rows.push([room.name, room.occupants, sizeLabel(room.area), score, figure(room.weight), money(trace.rentCents * room.weight)]);
   });
   rows.push(['The shares add up to', figure(trace.weights.reduce((sum, weight) => sum + weight, 0))]);
