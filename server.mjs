@@ -15,6 +15,8 @@ try {
 } catch { /* The map key is optional until .env is present. */ }
 const port = Number(process.env.PORT || 5173);
 const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.png': 'image/png' };
+types['.mjs'] = 'text/javascript';
+types['.wasm'] = 'application/wasm';
 const rentCache = new Map();
 const json = (res, status, body) => {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
@@ -43,9 +45,14 @@ const server = http.createServer(async (req, res) => {
       }
       return;
     }
-    const relative = pathname === '/' ? 'index.html' : pathname.slice(1);
+    if (pathname === '/roommate-split') {
+      res.writeHead(308, { Location: '/roommate-split/' }).end();
+      return;
+    }
+    const relative = pathname === '/' ? 'index.html' : pathname === '/roommate-split/' ? 'roommate-split/index.html' : pathname.slice(1);
+    const roommateAsset = /^roommate-split\/(?:index\.html|app\.js|floor-plan\.js|style\.css|vendor\/(?:heic2any\.min\.js|(?:ocr|pdf)\/[\w.-]+\.(?:m?js|wasm|gz)))$/.test(relative);
     // Serve only public app files; never expose repository metadata or source documents.
-    if (!['index.html', 'app.js', 'calculator.js', 'calculator-view.js', 'apartments.js', 'explore-view.js', 'welcome.js', 'styles.css', 'calculator.css', 'explore.css', 'welcome.css'].includes(relative) && !/^assets\/[a-zA-Z0-9._-]+$/.test(relative)) {
+    if (!roommateAsset && !['index.html', 'app.js', 'calculator.js', 'calculator-view.js', 'apartments.js', 'explore-view.js', 'welcome.js', 'styles.css', 'calculator.css', 'explore.css', 'welcome.css'].includes(relative) && !/^assets\/[a-zA-Z0-9._-]+$/.test(relative)) {
       res.writeHead(404).end('Not found'); return;
     }
     const file = path.join(root, relative);
