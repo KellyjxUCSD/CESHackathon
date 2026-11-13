@@ -104,7 +104,7 @@ export function placePage(place, result, here) {
   const calculatorAction = `<button class="button button-outline plan-calculator" type="button" data-start-custom="${escape(place.id)}">Start a rent split</button><p class="plan-calculator-note">Every apartment uses the same editable room calculator. Official bedroom measurements auto-fill only when the selected floor plan publishes them.</p>`;
   let body = place.kind ? '<p class="place-loading">Reading their website…</p>' : `<p class="place-loading">This website does not share a price list we can read. Ask them for the rent.</p>${calculatorAction}`;
   if (result?.error) {
-    body = `<p class="place-loading">${escape(result.error)}</p><button class="button button-outline" type="button" data-retry="${escape(place.id)}">Try again</button>${calculatorAction}`;
+    body = `<section class="official-floorplan-fallback"><h2>Official floor plans</h2><p>${escape(result.error)} Open the property’s floor-plan gallery for its images and current details.</p><a class="button button-outline" href="${escape(place.website || place.home)}" target="_blank" rel="noreferrer">View official floor plans</a><button class="button button-outline" type="button" data-retry="${escape(place.id)}">Try again</button></section>${calculatorAction}`;
   } else if (result?.plans) {
     const groups = new Map();
     for (const item of result.plans) {

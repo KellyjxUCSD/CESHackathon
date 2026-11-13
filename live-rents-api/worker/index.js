@@ -10,6 +10,18 @@ const listings = {
   blue: { website: 'https://www.lajollablueapartments.com/floorplans', sourceName: 'lajollablueapartments.com', kind: 'g5' },
   regencia: { website: 'https://www.gardencommunitiesca.com/apartments/ca/san-diego/regent-garden-associates-llc/floorplans', sourceName: 'gardencommunitiesca.com', kind: 'g5' },
   'regents-la-jolla': { website: 'https://www.regentslajolla.net/Floor-Plans.aspx', sourceName: 'regentslajolla.net', kind: 'realpage' },
+  'costa-verde': { website: 'https://www.gardencommunitiesca.com/apartments/ca/san-diego/costa-verde-village0/floorplans', sourceName: 'gardencommunitiesca.com', kind: 'catalog' },
+  towers: { website: 'https://www.gardencommunitiesca.com/apartments/ca/san-diego/towers-at-costa-verde/floorplans', sourceName: 'gardencommunitiesca.com', kind: 'catalog' },
+  crossroads: { website: 'https://www.gardencommunitiesca.com/apartments/ca/san-diego/la-jolla-crossroads/floorplans', sourceName: 'gardencommunitiesca.com', kind: 'catalog' },
+  lux: { website: 'https://www.gardencommunitiesca.com/apartments/ca/san-diego/lux-by-garden/luxutc', sourceName: 'gardencommunitiesca.com', kind: 'catalog' },
+  regents: { website: 'https://www.liveatregentscourt.com/floorplans/', sourceName: 'liveatregentscourt.com', kind: 'catalog' },
+  valentia: { website: 'https://www.sheaapartments.com/apartments/valentia/', sourceName: 'sheaapartments.com', kind: 'catalog' },
+  villa: { website: 'https://www.gardencommunitiesca.com/apartments/ca/la-jolla/villa-la-jolla-gardens-llc/floorplans', sourceName: 'gardencommunitiesca.com', kind: 'catalog' },
+  renaissance: { website: 'https://www.villasofrenaissance.com/floorplans/', sourceName: 'villasofrenaissance.com', kind: 'catalog' },
+  avia: { website: 'https://www.avialajolla.com/floorplans/', sourceName: 'avialajolla.com', kind: 'catalog' },
+  palms: { website: 'https://www.lajollapalms.com/floorplans/', sourceName: 'lajollapalms.com', kind: 'catalog' },
+  canyon: { website: 'https://www.canyonpark.com/floorplans/', sourceName: 'canyonpark.com', kind: 'catalog' },
+  elan: { website: 'https://www.elanterrazalajolla.com/floorplans/', sourceName: 'elanterrazalajolla.com', kind: 'catalog' },
 };
 // Only dimensions published on a labeled floor plan are included. We never infer a
 // bedroom size from the unit's total square footage: that would look precise but be
@@ -191,6 +203,31 @@ function parseCards(html) {
   }
   return plans.length ? plans : null;
 }
+function parseCatalog(html, baseUrl) {
+  const plans = [];
+  const seen = new Set();
+  const headings = [...html.matchAll(/<h[2-4][^>]*>([\s\S]*?)<\/h[2-4]>/gi)];
+  for (let index = 0; index < headings.length; index += 1) {
+    const match = headings[index];
+    const name = match[1].replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
+    if (!name || seen.has(name.toLowerCase())) continue;
+    const section = html.slice(match.index, headings[index + 1]?.index || match.index + 12000);
+    const facts = section.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ');
+    const bedMatch = facts.match(/(?:^|\s)(Studio|\d+)\s*(?:Bed|Bedroom)s?\b/i);
+    const bathMatch = facts.match(/(\d+(?:\.\d+)?)\s*(?:Bath|Bathroom)s?\b/i);
+    if (!bedMatch || !bathMatch) continue;
+    const beds = /^studio$/i.test(bedMatch[1]) ? 0 : Number(bedMatch[1]);
+    const sqft = Number((facts.match(/([\d,]+)(?:\s*[-–to]+\s*[\d,]+)?\s*Sq\.?(?:\s*Ft)?/i) || [])[1]?.replace(/,/g, ''));
+    const price = facts.match(/(?:Starting at|Rent)\s*(?:<[^>]+>\s*)*\$?\s*([\d,]+(?:\.\d{2})?)/i)?.[1]
+      || facts.match(/\$\s*([\d,]+(?:\.\d{2})?)(?:\s*(?:to|-)\s*\$?\s*[\d,]+)?\s*\/?\s*month/i)?.[1];
+    const source = section.match(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)/i)?.[1];
+    let image = null;
+    try { if (source) image = new URL(source.replaceAll('\\/', '/'), baseUrl).href; } catch { /* Keep the plan usable without an image. */ }
+    seen.add(name.toLowerCase());
+    plans.push(plan({ name, beds, baths: Number(bathMatch[1]), sqft, low: price, image, url: baseUrl }));
+  }
+  return plans.length ? plans : null;
+}
 function parseG5(data) {
   const list = data?.data?.apartmentComplex?.floorplans;
   return Array.isArray(list) ? list.map(item => plan({ name: item.name, beds: Number(item.beds), baths: Number(item.baths), sqft: Number(item.sqft), low: item.startingRate, high: item.endingRate, available: Number(item.totalAvailableUnits) })) : null;
@@ -209,6 +246,7 @@ async function scrape(place) {
   }
   if (place.kind === 'schema') plans = parseSchema(page);
   if (place.kind === 'cards') plans = parseCards(page);
+  if (place.kind === 'catalog') plans = parseCatalog(page, place.website);
   if (place.kind === 'g5') {
     const locationUrn = page.match(/"locationUrn":\s*"(g5-cl-[a-z0-9-]+)"/)?.[1];
     if (!locationUrn) throw new Error('The property does not expose a readable price feed.');

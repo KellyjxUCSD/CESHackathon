@@ -36,6 +36,10 @@
 .place-address { margin-top: 6px; }
 .place-source { margin-top: 14px; max-width: 62ch; }
 .place-loading { margin-top: 22px; }
+.official-floorplan-fallback { margin-top: 22px; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--fill); }
+.official-floorplan-fallback h2 { font-size: 18px; }
+.official-floorplan-fallback p { margin-top: 6px; color: var(--muted); line-height: 1.5; }
+.official-floorplan-fallback .button { margin: 14px 8px 0 0; }
 .place-detail .button { margin-top: 14px; }
 .rent-group { margin-top: 26px; }
 .rent-group h2 { font-size: 18px; letter-spacing: -.4px; }
