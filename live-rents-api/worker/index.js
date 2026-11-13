@@ -13,6 +13,7 @@ const cache = new Map();
 const staticOrigin = 'https://rentwise-ces-hackathon.russetpistachio8.chatgpt.site';
 const cors = {
   'access-control-allow-origin': staticOrigin,
+  'access-control-allow-credentials': 'true',
   'access-control-allow-methods': 'GET, OPTIONS',
   'access-control-allow-headers': 'content-type',
   vary: 'Origin',

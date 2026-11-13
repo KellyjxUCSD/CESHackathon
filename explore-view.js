@@ -66,9 +66,8 @@ export function placeCards(list, rentById, here, origin) {
   return list.map((place, index) => {
     const originPoint = from;
     const miles = milesBetween(originPoint, place);
-    const start = startingRent(rentById.get(place.id));
-    const estimate = rentById.get(place.id)?.sample;
-    const price = start ? `${estimate ? 'Est. from' : 'From'} ${money(start)}` : (place.kind ? 'See prices' : 'Ask them');
+    const start = place.kind ? startingRent(rentById.get(place.id)) : null;
+    const price = start ? `From ${money(start)}` : (place.kind ? 'See prices' : 'Ask them');
     const photo = place.photo
       ? `<img class="place-photo" src="${escape(place.photo)}" alt="${escape(place.photoAlt || place.name)}" />`
       : `<span class="place-photo place-photo-fallback" aria-hidden="true">${escape(place.name.slice(0, 1))}</span>`;
@@ -109,7 +108,7 @@ export function placePage(place, result, here) {
     body = [...groups.keys()].sort((a, b) => a - b).map(beds => {
       const items = groups.get(beds).slice().sort((a, b) => (a.low || Infinity) - (b.low || Infinity));
       const priced = items.map(item => item.low).filter(Boolean);
-    const from = priced.length ? (result.sample ? `Budget estimate: ${money(Math.min(...priced))}–${money(Math.max(...priced))} a month` : `Starts at ${money(Math.min(...priced))} a month`) : 'Ask them for the price';
+    const from = priced.length ? `Starts at ${money(Math.min(...priced))} a month` : 'Ask them for the price';
       const rows = items.map(item => {
         const shown = priceText(item.low, item.high);
         const action = item.low
@@ -124,7 +123,7 @@ export function placePage(place, result, here) {
     <section class="place-detail">
       ${place.photo ? `<img class="place-hero" src="${escape(place.photo)}" alt="${escape(place.photoAlt || place.name)}" />` : ''}
       <p class="place-kicker">${milesLabel(miles, Boolean(here))}</p><h1>${escape(place.name)}</h1><p class="place-address">${escape(place.address)}</p>
-      <p class="place-source">${result?.sample ? 'Budget estimates are for comparison only. Check the property website for a current quote.' : result?.plans ? `Prices from ${escape(place.sourceName)}${when ? `, ${when}` : ''}. They can change.` : 'Open their website to ask about rent.'}</p>
+      <p class="place-source">${result?.plans ? `Prices from ${escape(place.sourceName)}${when ? `, ${when}` : ''}. They can change.` : 'Open their website to ask about rent.'}</p>
       <p class="place-site">${siteLink(place)}</p>
       ${body}
     </section>`;

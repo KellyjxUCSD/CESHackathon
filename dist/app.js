@@ -36,19 +36,7 @@ let step = 1;
 let currentPage = 'explore';
 let revertBedrooms = false;
 const filters = { search: '', beds: '', max: '', trolley: false, saved: false, sort: 'recommended' };
-// Budget estimates keep the hosted demo useful without claiming to be live quotes.
-const budgetEstimates = {
-  palisade: [2895, 3495, 1], terrace: [2595, 3295, 1], veranda: [2895, 3695, 1], allina: [2995, 3795, 1],
-  nobel: [2595, 3095, 1], court: [2400, 3200, 1], axiom: [2850, 3650, 1], village: [2600, 3400, 1],
-  'costa-verde': [2850, 3600, 1], towers: [3000, 3900, 1], crossroads: [3050, 3950, 1], lux: [3100, 4050, 1],
-  regents: [2750, 3500, 1], blue: [2950, 3750, 1], villa: [2500, 3150, 1], renaissance: [2950, 3900, 1],
-  avia: [2800, 3700, 1], palms: [2400, 3100, 1], canyon: [2700, 3600, 1], elan: [2500, 3350, 1], whispering: [2300, 3000, 1],
-};
-function budgetRent(id) {
-  const [low, high, beds] = budgetEstimates[id] || [2600, 3400, 1];
-  return { sample: true, plans: [{ name: 'Budget estimate', beds, baths: null, sqft: null, low, high, available: null, deposit: null }] };
-}
-apartments.forEach(place => rentById.set(place.id, budgetRent(place.id)));
+const rentApi = 'https://rentwise-live-rents-api.russetpistachio8.chatgpt.site';
 const main = document.querySelector('#main');
 const modal = document.querySelector('#modal');
 let toastTimeout;
@@ -155,6 +143,7 @@ function renderExplore() {
   document.querySelector('#all-filters').addEventListener('click', showFilters);
   renderListings();
   ensureMap();
+  prefetchRents();
 }
 function renderListings() {
   const list = orderedApartments();
@@ -168,12 +157,23 @@ function renderListings() {
   drawMarkers();
 }
 function prefetchRents() {
-  // Hosted builds use the comparison estimates above; live crawling requires a server.
+  apartments.forEach(place => { if (place.kind) loadRents(place.id).then(() => { if (currentPage === 'explore') renderListings(); }); });
 }
 function loadRents(id) {
-  const result = rentById.get(id) || budgetRent(id);
-  rentById.set(id, result);
-  return Promise.resolve(result);
+  if (rentById.has(id)) return Promise.resolve(rentById.get(id));
+  if (!rentLoads.has(id)) {
+    const request = fetch(`${rentApi}/api/rents?id=${encodeURIComponent(id)}`, { credentials: 'include' }).then(response => response.json()).then(data => {
+      const result = data.plans ? { plans: data.plans, fetchedAt: data.fetchedAt } : { error: data.error || 'The property did not publish a readable current price.' };
+      rentById.set(id, result);
+      return result;
+    }).catch(() => {
+      const result = { error: 'Live floor-plan pricing could not be loaded. Please try again or visit the property website.' };
+      rentById.set(id, result);
+      return result;
+    }).finally(() => rentLoads.delete(id));
+    rentLoads.set(id, request);
+  }
+  return rentLoads.get(id);
 }
 function ensureMap() {
   const frame = document.querySelector('#apartment-map');
