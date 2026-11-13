@@ -7,6 +7,9 @@ const listings = {
   court: { website: 'https://www.nobelcourt.com/floor-plans/', sourceName: 'nobelcourt.com', kind: 'cards' },
   axiom: { website: 'https://www.axiomlajolla.com/floor-plans', sourceName: 'axiomlajolla.com', kind: 'realpage' },
   village: { website: 'https://www.villageviewlajolla.com/floor-plans', sourceName: 'villageviewlajolla.com', kind: 'realpage' },
+  blue: { website: 'https://www.lajollablueapartments.com/floorplans', sourceName: 'lajollablueapartments.com', kind: 'g5' },
+  regencia: { website: 'https://www.gardencommunitiesca.com/apartments/ca/san-diego/regent-garden-associates-llc/floorplans', sourceName: 'gardencommunitiesca.com', kind: 'g5' },
+  'regents-la-jolla': { website: 'https://www.regentslajolla.net/Floor-Plans.aspx', sourceName: 'regentslajolla.net', kind: 'realpage' },
 };
 // Only dimensions published on a labeled floor plan are included. All other rooms remain manual.
 const exactRoomDimensions = {
@@ -83,6 +86,26 @@ async function addJonahImages(plans = []) {
   }));
   return plans;
 }
+function publishedPlanImages(html, baseUrl) {
+  const images = [];
+  for (const tag of html.matchAll(/<img\b[^>]*>/gi)) {
+    const source = tag[0].match(/\bsrc\s*=\s*["']([^"']+)/i)?.[1];
+    const label = `${tag[0].match(/\balt\s*=\s*["']([^"']*)/i)?.[1] || ''} ${tag[0].match(/\btitle\s*=\s*["']([^"']*)/i)?.[1] || ''}`;
+    if (!source || !/floor\s*plan|floorplan|\d+\s*bed.*\d+\s*bath/i.test(label)) continue;
+    try { images.push({ url: new URL(source.replaceAll('\\/', '/'), baseUrl).href, label: label.toLowerCase() }); } catch { /* Ignore invalid image URLs. */ }
+  }
+  return [...new Map(images.map(image => [image.url, image])).values()];
+}
+function addPublishedPlanImages(plans, html, baseUrl) {
+  const images = publishedPlanImages(html, baseUrl);
+  if (!images.length) return plans;
+  return plans.map((item, index) => {
+    if (item.image) return item;
+    const name = item.name.toLowerCase();
+    const match = images.find(image => image.label.includes(name));
+    return { ...item, image: (match || images[index % images.length]).url };
+  });
+}
 function parseRealpage(data) {
   const list = data?.response?.floorplans;
   return Array.isArray(list) ? list.map(item => plan({ name: item.name, beds: Number(item.bedRooms), baths: Number(item.bathRooms), sqft: Number(item.minimumSquareFeet), low: item.minimumMarketRent, high: item.maximumMarketRent, deposit: item.depositAmount })) : null;
@@ -131,7 +154,7 @@ async function scrape(place) {
     const data = await readJson('https://inventory.g5marketingcloud.com/graphql', { method: 'POST', headers: { 'content-type': 'application/json', origin: new URL(place.website).origin, referer: place.website }, body: JSON.stringify({ query: g5Query, variables: { locationUrn, moveInDate: new Date().toISOString().slice(0, 10) } }) });
     plans = parseG5(data);
   }
-  const priced = (plans || []).filter(item => item.low);
+  const priced = addPublishedPlanImages((plans || []).filter(item => item.low), page, place.website);
   if (!priced.length) throw new Error('No current prices were published.');
   return priced;
 }
