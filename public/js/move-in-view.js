@@ -3,9 +3,9 @@ const beforeMove = [
     title: 'Set up internet',
     action: 'Check availability for your exact unit.',
     links: [
-      ['AT&T', 'https://www.att.com/support/article/internet/KM1009644/'],
-      ['Verizon', 'https://www.verizon.com/home/internet/fios-fastest-internet/availability/'],
-      ['Spectrum / Cox', 'https://www.cox.com/residential/local/services/ca/san-diego/internet.html'],
+      ['AT&amp;T', 'https://www.att.com/support/article/internet/KM1009644/', 'https://upload.wikimedia.org/wikipedia/commons/7/73/AT%26T_logo_used_from_2015-today.png'],
+      ['Verizon', 'https://www.verizon.com/home/internet/fios-fastest-internet/availability/', 'https://upload.wikimedia.org/wikipedia/commons/5/5a/Verizon_2024_%28symbol%29.svg'],
+      ['Spectrum / Cox', 'https://www.cox.com/residential/local/services/ca/san-diego/internet.html', 'https://upload.wikimedia.org/wikipedia/commons/a/ac/Charter_Spectrum_logo.svg'],
     ],
     tips: [
       'Ask the leasing office if internet is included or if the building has preferred providers.',
@@ -16,18 +16,20 @@ const beforeMove = [
   {
     title: 'Start electricity and gas',
     action: 'If you pay SDG&E directly, schedule service for the date your lease requires.',
-    links: [['Start or transfer SDG&E', 'https://www.sdge.com/residential/customer-service/service-requests/start-stop-move']],
+    links: [['Start or transfer SDG&amp;E', 'https://www.sdge.com/residential/customer-service/service-requests/start-stop-move', 'https://www.sdgetoday.com/sites/default/files/styles/small_16_9/public/2024-05/SDGE_full%20color_RGB_0323.jpg?itok=A0-HCPtB']],
     tips: [
       'Ask which utilities are included, billed by the property, or set up separately. Check water, sewer, and trash too.',
-      'Save your service confirmation in case the leasing office asks for it.',
+      'Save your <strong>service confirmation</strong> in case the leasing office asks for it.',
     ],
   },
   {
     title: 'Get renters insurance',
-    action: 'Check your lease’s coverage requirements and when proof is due.',
+    action: 'Check your lease’s <strong>coverage requirements</strong> and when proof is due.',
     links: [
-      ['Lemonade', 'https://www.lemonade.com/renters/explained/renters-insurance-california/'],
-      ['Progressive', 'https://www.progressive.com/renters-insurance/'],
+      ['Lemonade', 'https://www.lemonade.com/renters/explained/renters-insurance-california/', 'https://upload.wikimedia.org/wikipedia/commons/0/0e/Logo_of_Lemonade%2C_Inc.svg'],
+      ['Progressive', 'https://www.progressive.com/renters-insurance/', 'https://design.progressive.com/uploads/progressive_logo_9e9f26946c.svg'],
+      ['GEICO', 'https://www.geico.com/renters-insurance/states/ca/', 'https://upload.wikimedia.org/wikipedia/commons/d/d2/Geico_logo.svg'],
+      ['AAA', 'https://www.ace.aaa.com/insurance', 'https://upload.wikimedia.org/wikipedia/commons/d/d4/American-Automobile-Association-Logo.svg'],
     ],
     tips: [
       'Use the required start date and confirm how to list the property manager if asked.',
@@ -36,10 +38,10 @@ const beforeMove = [
   },
   {
     title: 'Plan key pickup and deliveries',
-    action: 'Confirm key pickup and reserve an elevator or loading dock if needed.',
+    action: 'Confirm <strong>key pickup</strong> and reserve an elevator or loading dock if needed.',
     tips: [
       'Ask what ID to bring, how much is due, and which payment methods the office accepts.',
-      'Check whether movers need a certificate of insurance (COI).',
+      'Check whether movers need a <strong>Certificate of Insurance (COI)</strong>.',
       'Measure doors, elevator openings, and hallway turns before booking furniture deliveries.',
       'Ask how to get parking permits, garage remotes, and package locker access.',
     ],
@@ -50,7 +52,7 @@ const moveInDay = [{
   title: 'Document the apartment’s condition',
   action: 'Photograph existing damage before unpacking.',
   tips: [
-    'Submit the move-in condition form by the property’s deadline and keep a copy.',
+    'Submit the <strong>move-in condition form</strong> by the property’s deadline and keep a copy.',
     'Test keys, fobs, locks, lights, outlets, water, appliances, and internet.',
     'Report problems to management in writing.',
   ],
@@ -68,8 +70,8 @@ function checklist(items) {
           <span class="move-in-chevron" aria-hidden="true"></span>
         </summary>
         <div class="move-in-detail">
-          ${links ? `<ul class="move-in-links">${links.map(([name, url]) => `
-            <li><a href="${url}" target="_blank" rel="noopener">${name}</a></li>`).join('')}
+          ${links ? `<ul class="move-in-links">${links.map(([name, url, logo]) => `
+            <li><a href="${url}" target="_blank" rel="noopener"><img src="${logo}" alt="" loading="lazy" referrerpolicy="no-referrer" />${name}</a></li>`).join('')}
           </ul>` : ''}
           <ul class="move-in-tips">${tips.map(tip => `<li>${tip}</li>`).join('')}</ul>
         </div>

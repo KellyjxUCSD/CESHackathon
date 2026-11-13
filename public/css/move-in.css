@@ -47,11 +47,20 @@
   margin-bottom: 10px;
 }
 .move-in-links a {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
   padding: 5px 10px;
   border: 1px solid var(--line);
   border-radius: 6px;
   font-size: 12px;
+}
+.move-in-links img {
+  width: auto;
+  max-width: 58px;
+  height: 17px;
+  object-fit: contain;
 }
 .move-in-links a:hover { background: var(--fill); }
 @media (max-width: 480px) {

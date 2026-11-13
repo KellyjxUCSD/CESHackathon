@@ -19,3 +19,15 @@ dialog{overflow:auto}
 .about-modal h3{margin:14px 0 4px}
 .about-modal>p{margin-bottom:8px}
 .text-modal a{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+
+.brand-wordmark {
+  color: #182b49;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.brand-rent {
+  color: #00629b;
+  text-decoration: underline #ffcd00 2px;
+  text-underline-offset: 4px;
+  text-decoration-skip-ink: none;
+}
