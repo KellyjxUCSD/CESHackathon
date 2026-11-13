@@ -11,7 +11,10 @@ const listings = {
   regencia: { website: 'https://www.gardencommunitiesca.com/apartments/ca/san-diego/regent-garden-associates-llc/floorplans', sourceName: 'gardencommunitiesca.com', kind: 'g5' },
   'regents-la-jolla': { website: 'https://www.regentslajolla.net/Floor-Plans.aspx', sourceName: 'regentslajolla.net', kind: 'realpage' },
 };
-// Only dimensions published on a labeled floor plan are included. All other rooms remain manual.
+// Only dimensions published on a labeled floor plan are included. We never infer a
+// bedroom size from the unit's total square footage: that would look precise but be
+// wrong. The client uses `areaStatus` to offer the same editable room workflow for
+// every plan and to make clear when a source did not publish measurements.
 const exactRoomDimensions = {
   palisade: {
     '2 Bedroom C': [
@@ -106,6 +109,43 @@ function addPublishedPlanImages(plans, html, baseUrl) {
     return { ...item, image: (match || images[index % images.length]).url };
   });
 }
+function feet(feetPart, inchesPart) {
+  const wholeFeet = Number(feetPart);
+  const inches = Number(inchesPart || 0);
+  return Number.isFinite(wholeFeet) && Number.isFinite(inches) ? wholeFeet + inches / 12 : null;
+}
+// Some properties put measurements in the accessible text beside a plan image.
+// Read those only when a plan section has exactly one labeled size per bedroom.
+// Measurements embedded only as pixels in an image are deliberately left editable,
+// rather than guessed by OCR or inferred from total unit square footage.
+function publishedRoomDimensions(html, planName, bedrooms) {
+  if (!planName || !Number.isInteger(bedrooms) || bedrooms < 1) return null;
+  const text = html
+    .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&(?:amp|quot|apos);/gi, ' ')
+    .replace(/\s+/g, ' ');
+  const index = text.toLowerCase().indexOf(String(planName).toLowerCase());
+  if (index < 0) return null;
+  const section = text.slice(index, index + 2200);
+  const sizes = [];
+  const dimension = /(?:(primary|master)\s+)?(?:bedroom|bed)\s*(?:#?\s*(\d+))?\s*(?:is|:|–|—|-)?\s*(\d{1,2})\s*(?:'|ft|feet)\s*(?:(\d{1,2})\s*(?:\"|in|inches))?\s*(?:x|×)\s*(\d{1,2})\s*(?:'|ft|feet)\s*(?:(\d{1,2})\s*(?:\"|in|inches))?/gi;
+  for (const match of section.matchAll(dimension)) {
+    const length = feet(match[3], match[4]);
+    const width = feet(match[5], match[6]);
+    if (!length || !width) continue;
+    const number = match[2] || sizes.length + 1;
+    const name = match[1] ? 'Primary bedroom' : `Bedroom ${number}`;
+    const lengthLabel = `${match[3]}'${match[4] ? ` ${match[4]}\"` : ''}`;
+    const widthLabel = `${match[5]}'${match[6] ? ` ${match[6]}\"` : ''}`;
+    sizes.push({ name, length, width, lengthLabel, widthLabel });
+  }
+  return sizes.length === bedrooms ? sizes : null;
+}
+function addPublishedPlanRoomDimensions(plans, html) {
+  return plans.map(item => ({ ...item, roomDimensions: publishedRoomDimensions(html, item.name, item.beds) }));
+}
 function parseRealpage(data) {
   const list = data?.response?.floorplans;
   return Array.isArray(list) ? list.map(item => plan({ name: item.name, beds: Number(item.bedRooms), baths: Number(item.bathRooms), sqft: Number(item.minimumSquareFeet), low: item.minimumMarketRent, high: item.maximumMarketRent, deposit: item.depositAmount })) : null;
@@ -154,13 +194,20 @@ async function scrape(place) {
     const data = await readJson('https://inventory.g5marketingcloud.com/graphql', { method: 'POST', headers: { 'content-type': 'application/json', origin: new URL(place.website).origin, referer: place.website }, body: JSON.stringify({ query: g5Query, variables: { locationUrn, moveInDate: new Date().toISOString().slice(0, 10) } }) });
     plans = parseG5(data);
   }
-  const priced = addPublishedPlanImages((plans || []).filter(item => item.low), page, place.website);
+  const priced = addPublishedPlanRoomDimensions(addPublishedPlanImages((plans || []).filter(item => item.low), page, place.website), page);
   if (!priced.length) throw new Error('No current prices were published.');
   return priced;
 }
 function attachExactRoomDimensions(id, plans) {
   const dimensions = exactRoomDimensions[id] || {};
-  return plans.map(item => ({ ...item, roomDimensions: dimensions[item.name] || null }));
+  return plans.map(item => {
+    const roomDimensions = dimensions[item.name] || item.roomDimensions || null;
+    return {
+      ...item,
+      roomDimensions,
+      areaStatus: roomDimensions ? 'official' : 'not-published',
+    };
+  });
 }
 
 export default {

@@ -101,9 +101,10 @@ function planFacts(item) {
 export function placePage(place, result, here) {
   const miles = milesBetween(here || UTC, place);
   const when = readWhen(result?.fetchedAt);
-  let body = place.kind ? '<p class="place-loading">Reading their website…</p>' : '<p class="place-loading">This website does not share a price list we can read. Ask them for the rent.</p>';
+  const calculatorAction = `<button class="button button-outline plan-calculator" type="button" data-start-custom="${escape(place.id)}">Start a rent split</button><p class="plan-calculator-note">Every apartment uses the same editable room calculator. Official bedroom measurements auto-fill only when the selected floor plan publishes them.</p>`;
+  let body = place.kind ? '<p class="place-loading">Reading their website…</p>' : `<p class="place-loading">This website does not share a price list we can read. Ask them for the rent.</p>${calculatorAction}`;
   if (result?.error) {
-    body = `<p class="place-loading">${escape(result.error)}</p><button class="button button-outline" type="button" data-retry="${escape(place.id)}">Try again</button>`;
+    body = `<p class="place-loading">${escape(result.error)}</p><button class="button button-outline" type="button" data-retry="${escape(place.id)}">Try again</button>${calculatorAction}`;
   } else if (result?.plans) {
     const groups = new Map();
     for (const item of result.plans) {
@@ -117,8 +118,11 @@ export function placePage(place, result, here) {
       const from = priced.length ? `Starts at ${money(Math.min(...priced))} a month` : 'Ask them for the price';
       const rows = items.map(item => {
         const shown = priceText(item.low, item.high);
+        const areaLabel = item.areaStatus === 'official'
+          ? '<span class="plan-area-status official">Official room areas ready</span>'
+          : '<span class="plan-area-status">Editable room areas</span>';
         const action = item.low
-          ? `<button class="button button-outline split-button" type="button" data-split="${escape(place.id)}" data-rent="${item.low}" data-beds="${item.beds || 1}" data-plan="${escape(item.name)}">Split ${money(item.low)}</button>`
+          ? `<button class="button button-outline split-button" type="button" data-split="${escape(place.id)}" data-rent="${item.low}" data-beds="${item.beds || 1}" data-plan="${escape(item.name)}">Use this plan</button>${areaLabel}`
           : '<span class="place-meta">No price listed</span>';
         const picture = item.image ? `<a class="floorplan-picture" href="${escape(item.url || item.image)}" target="_blank" rel="noreferrer"><img src="${escape(item.image)}" alt="${escape(item.name)} floor plan" /></a>` : '';
         return `<li class="rent-row">${picture}<div><strong>${escape(item.name)}</strong><span class="place-meta">${escape(planFacts(item))}</span></div><div class="rent-action"><strong>${shown || 'Ask them'}</strong>${action}</div></li>`;
@@ -133,5 +137,6 @@ export function placePage(place, result, here) {
       <p class="place-source">${result?.plans ? `Prices from ${escape(place.sourceName)}${when ? `, ${when}` : ''}. They can change.` : 'Open their website to ask about rent.'}</p>
       <p class="place-site">${siteLink(place)}</p>
       ${body}
+      ${result?.plans ? calculatorAction : ''}
     </section>`;
 }

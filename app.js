@@ -326,7 +326,30 @@ function startFromRent(id, rent, beds, floorPlan) {
       plan.roommates[index].area = Math.round(length * width * 10) / 10;
       plan.roommates[index].sourceNote = `Auto-filled from the plan: ${room.lengthLabel} × ${room.widthLabel} = ${plan.roommates[index].area} sq ft. You can edit this.`;
     });
+  } else {
+    plan.roommates.forEach(room => {
+      room.sourceNote = 'This plan does not publish bedroom measurements. Add your own estimate; it stays editable.';
+    });
   }
+  persist(); step = 1;
+  if (currentPage === 'calculator') renderCalculator(); else location.hash = '/calculator';
+}
+
+function startCustomApartment(id) {
+  const place = apartments.find(item => item.id === id);
+  if (!place) return;
+  plan = newPlan();
+  plan.property = place.name;
+  plan.floorPlan = '';
+  const bedrooms = Array.isArray(place.bedsOffered) && place.bedsOffered.length
+    ? Math.max(1, Number(place.bedsOffered.find(count => count > 0)) || 1)
+    : 1;
+  plan.lockedBedrooms = null;
+  plan.roommates = Array.from({ length: bedrooms }, (_, index) => {
+    const room = blankRoom(index);
+    room.sourceNote = 'Add your room measurement or choose a size. All fields stay editable.';
+    return room;
+  });
   persist(); step = 1;
   if (currentPage === 'calculator') renderCalculator(); else location.hash = '/calculator';
 }
@@ -504,6 +527,7 @@ document.addEventListener('click', event => {
   if (!button) return;
   if (button.dataset.place) location.hash = `/place/${button.dataset.place}`;
   if (button.dataset.split) startFromRent(button.dataset.split, button.dataset.rent, button.dataset.beds, button.dataset.plan);
+  if (button.dataset.startCustom) startCustomApartment(button.dataset.startCustom);
   if (button.dataset.retry) { rentById.delete(button.dataset.retry); renderPlace(button.dataset.retry); }
   if (button.hasAttribute('data-near')) useMyLocation();
   if (button.hasAttribute('data-close')) modal.close();
