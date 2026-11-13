@@ -1,3 +1,19 @@
+.move-in-closing {
+  margin: clamp(52px, 9vw, 88px) 0 0;
+  color: #365470;
+  font-family: "Instrument Serif", Georgia, serif;
+  font-style: italic;
+  letter-spacing: 0.025em;
+  word-spacing: 0.12em;
+  font-size: 19px;
+  font-weight: 400;
+  text-align: center;
+}
+.move-in-emoji {
+  font-style: normal;
+  margin-left: 3px;
+  font-size: 1em;
+}
 .move-in-page { max-width: 780px; }
 .move-in-section + .move-in-section { margin-top: 28px; }
 .move-in-section h2 { margin-bottom: 10px; font-size: 15px; }

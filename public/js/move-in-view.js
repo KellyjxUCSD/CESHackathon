@@ -92,5 +92,6 @@ export function moveInView() {
     <section class="move-in-section" aria-labelledby="move-in-day-heading">
       <h2 id="move-in-day-heading">On move-in day</h2>
       ${checklist(moveInDay)}
-    </section>`;
+    </section>
+    <p class="move-in-closing">You’re one step closer to home! <span class="move-in-emoji" aria-hidden="true">🏡</span></p>`;
 }
