@@ -1,3 +1,4 @@
+import { moveInView } from './move-in-view.js';
 import { newPlan, normalizePlan, breakdownRows, encodePlan, decodePlan, splitError } from './calculator.js';
 import { calculatorView, liveSplitHTML, featureHint, costLabels, summaryText, rentIsSet, roomAreaText } from './calculator-view.js';
 import { apartments, UTC, UCSD, milesBetween } from './apartments.js';
@@ -613,7 +614,7 @@ document.querySelector('#privacy-button').addEventListener('click', () => openMo
 function route() {
   const [path, query = ''] = location.hash.slice(1).split('?');
   const placeId = path.startsWith('/place/') ? decodeURIComponent(path.slice('/place/'.length)) : '';
-  currentPage = path === '/calculator' ? 'calculator' : placeId ? 'place' : (path === '/welcome' || !path || path === '/') ? 'welcome' : 'explore';
+  currentPage = path === '/calculator' ? 'calculator' : path === '/move-in' ? 'move-in' : placeId ? 'place' : (path === '/welcome' || !path || path === '/') ? 'welcome' : 'explore';
   const params = new URLSearchParams(query);
   if (currentPage === 'calculator' && params.has('plan')) {
     try { floorPlanUpload.reset(); plan = decodePlan(params.get('plan')); const sharedStep = Number(params.get('step')); step = [1, 2, 3].includes(sharedStep) ? sharedStep : 3; persist(); toast('Shared plan opened.'); }
@@ -626,11 +627,15 @@ function route() {
     persist();
     history.replaceState(null, '', `${location.pathname}${location.search}#/calculator`);
   }
-  const section = currentPage === 'calculator' ? 'calculator' : currentPage === 'welcome' ? '' : 'explore';
+  const section = currentPage === 'welcome' ? '' : currentPage === 'place' ? 'explore' : currentPage;
   document.querySelectorAll('[data-nav]').forEach(link => { if (link.dataset.nav === section) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current'); });
   const place = apartments.find(item => item.id === placeId);
-  document.title = `${currentPage === 'calculator' ? 'Rent Calculator' : currentPage === 'welcome' ? 'Welcome' : place ? place.name : 'Apartments near UCSD'} — Rentwise`;
+  document.title = `${currentPage === 'calculator' ? 'Rent Calculator' : currentPage === 'move-in' ? 'Move-in Guide' : currentPage === 'welcome' ? 'Welcome' : place ? place.name : 'Apartments near UCSD'} — Rentwise`;
   if (currentPage === 'calculator') renderCalculator();
+  else if (currentPage === 'move-in') {
+    main.className = 'move-in-page page-container';
+    main.innerHTML = moveInView();
+  }
   else if (currentPage === 'welcome') {
     main.className = 'welcome-page'; main.innerHTML = welcomeView();
     main.querySelectorAll('.art-room').forEach(room => {
