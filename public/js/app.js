@@ -334,6 +334,18 @@ function applyBedroomCount(count) {
   plan.roommates.length = count;
   persist();
 }
+function publishedRooms(id, floorPlan) {
+  const selected = rentById.get(id)?.plans?.find(item => item.name === floorPlan);
+  if (!selected?.roomDimensions?.length) return null;
+  return selected.roomDimensions.map((room, index) => {
+    const next = blankRoom(index);
+    next.name = room.name || `Room ${index + 1}`;
+    next.length = room.length || '';
+    next.width = room.width || '';
+    next.area = room.length && room.width ? room.length * room.width : next.area;
+    return next;
+  });
+}
 function startFromRent(id, rent, beds, floorPlan) {
   const place = apartments.find(item => item.id === id);
   if (!place || !Number(rent)) return;
@@ -344,7 +356,21 @@ function startFromRent(id, rent, beds, floorPlan) {
   plan.rent = Math.round(Number(rent) * 100) / 100;
   const count = Math.min(6, Math.max(1, Number(beds) || 1));
   plan.lockedBedrooms = count;
-  plan.roommates = Array.from({ length: count }, (_, index) => blankRoom(index));
+  plan.roommates = publishedRooms(id, floorPlan) || Array.from({ length: count }, (_, index) => blankRoom(index));
+  plan.lockedBedrooms = plan.roommates.length;
+  persist(); step = 1;
+  if (currentPage === 'calculator') renderCalculator(); else location.hash = '/calculator';
+}
+function startFromPlan(id, beds, floorPlan) {
+  const place = apartments.find(item => item.id === id);
+  if (!place) return;
+  floorPlanUpload.reset();
+  plan = newPlan();
+  plan.property = place.name;
+  plan.floorPlan = String(floorPlan || '').slice(0, 80);
+  const count = Math.min(6, Math.max(1, Number(beds) || 1));
+  plan.roommates = publishedRooms(id, floorPlan) || Array.from({ length: count }, (_, index) => blankRoom(index));
+  plan.lockedBedrooms = plan.roommates.length;
   persist(); step = 1;
   if (currentPage === 'calculator') renderCalculator(); else location.hash = '/calculator';
 }
@@ -547,6 +573,8 @@ document.addEventListener('click', event => {
   if (button.dataset.removeExtra !== undefined) { plan.extraFees.splice(Number(button.dataset.removeExtra),1); plan.extraFees.forEach((fee,index)=>{fee.id=`extra${index}`;}); persist(); rerender(); }
   if (button.dataset.place) location.hash = `/place/${button.dataset.place}`;
   if (button.dataset.split) startFromRent(button.dataset.split, button.dataset.rent, button.dataset.beds, button.dataset.plan);
+  if (button.dataset.startPlan) startFromPlan(button.dataset.startPlan, button.dataset.beds, button.dataset.plan);
+  if (button.dataset.startCustom) { floorPlanUpload.reset(); plan = newPlan(); plan.property = apartments.find(item => item.id === button.dataset.startCustom)?.name || ''; persist(); step = 1; location.hash = '/calculator'; }
   if (button.dataset.retry) { rentById.delete(button.dataset.retry); renderPlace(button.dataset.retry); }
   if (button.hasAttribute('data-near')) useMyLocation();
   if (button.hasAttribute('data-close')) modal.close();

@@ -26,7 +26,7 @@ test('Jonah floor-plan pages keep the listed price and bedroom count', () => {
 
 test('RealPage and G5 responses become the same price shape', () => {
   const realpage = parseRealpage({ response: { floorplans: [{ name: '1 Bedroom', bedRooms: '1', bathRooms: '1', minimumSquareFeet: '700', minimumMarketRent: 2425, maximumMarketRent: 2425, depositAmount: 750 }] } });
-  assert.deepEqual(realpage[0], { name: '1 Bedroom', beds: 1, baths: 1, sqft: 700, low: 2425, high: 2425, available: null, deposit: 750 });
+  assert.deepEqual(realpage[0], { name: '1 Bedroom', beds: 1, baths: 1, sqft: 700, low: 2425, high: 2425, available: null, deposit: 750, image: null, url: null, roomDimensions: null });
   const g5 = parseG5({ data: { apartmentComplex: { floorplans: [{ name: '1X1', beds: 1, baths: '1.0', sqft: 640, startingRate: 2563, endingRate: 2823, totalAvailableUnits: 7 }] } } });
   assert.equal(g5[0].low, 2563);
   assert.equal(g5[0].high, 2823);
