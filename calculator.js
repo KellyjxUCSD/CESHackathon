@@ -36,6 +36,7 @@ export function normalizePlan(value) {
       windows: ['none', 'normal', 'large'].includes(person?.windows) ? person.windows : 'normal',
       closet: ['none', 'normal', 'large'].includes(person?.closet) ? person.closet : 'normal',
       bath: ['shared', 'half', 'private'].includes(person?.bath) ? person.bath : 'shared',
+      sourceNote: typeof person?.sourceNote === 'string' ? person.sourceNote.slice(0, 120) : '',
       names: [0, 1].map(slot => typeof person?.names?.[slot] === 'string' ? person.names[slot].slice(0, 40) : ''),
     }));
   }

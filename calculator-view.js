@@ -181,7 +181,8 @@ function rentStep(plan) {
 function sizeField(room, index) {
   const preset = SIZES.some(([area]) => area === room.area);
   const rows = SIZES.map(([area, label]) => `<label class="size-row ${room.area === area ? 'selected' : ''}"><input type="radio" name="room-size-${index}" data-room-index="${index}" value="${area}" ${room.area === area ? 'checked' : ''} /><span class="size-name">${label}</span><span class="size-sq">${area} sq ft</span><span class="size-block" data-size="${area}"></span></label>`).join('');
-  return `<fieldset class="size-choice"><legend>How big is this room?</legend><div class="size-scale">${rows}</div><p class="choice-hint" data-size-hint="${index}">${preset ? '' : `Using your measurement: ${room.area} sq ft.`}</p><label class="field exact-size"><span>Square feet</span><input data-room-area data-room-index="${index}" type="number" min="1" max="10000" step="1" required inputmode="numeric" value="${room.area}" /></label></fieldset>`;
+  const hint = room.sourceNote || (preset ? '' : `Using your measurement: ${room.area} sq ft.`);
+  return `<fieldset class="size-choice"><legend>How big is this room?</legend><div class="size-scale">${rows}</div><p class="choice-hint" data-size-hint="${index}">${escape(hint)}</p><label class="field exact-size"><span>Square feet</span><input data-room-area data-room-index="${index}" type="number" min="1" max="10000" step="1" required inputmode="numeric" value="${room.area}" /></label></fieldset>`;
 }
 
 function factorChoices(plan, index, factor) {

@@ -8,6 +8,15 @@ const listings = {
   axiom: { website: 'https://www.axiomlajolla.com/floor-plans', sourceName: 'axiomlajolla.com', kind: 'realpage' },
   village: { website: 'https://www.villageviewlajolla.com/floor-plans', sourceName: 'villageviewlajolla.com', kind: 'realpage' },
 };
+// Only dimensions published on a labeled floor plan are included. All other rooms remain manual.
+const exactRoomDimensions = {
+  palisade: {
+    '2 Bedroom C': [
+      { name: 'Primary bedroom', length: 13.25, width: 18 + 1 / 12, lengthLabel: "13' 3\"", widthLabel: "18' 1\"" },
+      { name: 'Bedroom 2', length: 11 + 2 / 12, width: 11 + 5 / 12, lengthLabel: "11' 2\"", widthLabel: "11' 5\"" },
+    ],
+  },
+};
 
 const cache = new Map();
 const staticOrigin = 'https://rentwise-ces-hackathon.russetpistachio8.chatgpt.site';
@@ -126,6 +135,10 @@ async function scrape(place) {
   if (!priced.length) throw new Error('No current prices were published.');
   return priced;
 }
+function attachExactRoomDimensions(id, plans) {
+  const dimensions = exactRoomDimensions[id] || {};
+  return plans.map(item => ({ ...item, roomDimensions: dimensions[item.name] || null }));
+}
 
 export default {
   async fetch(request) {
@@ -138,7 +151,7 @@ export default {
     const previous = cache.get(id);
     if (previous && Date.now() - previous.at < 5 * 60 * 1000) return json(previous.body);
     try {
-      const body = { id, source: place.website, sourceName: place.sourceName, fetchedAt: new Date().toISOString(), plans: await scrape(place) };
+      const body = { id, source: place.website, sourceName: place.sourceName, fetchedAt: new Date().toISOString(), plans: attachExactRoomDimensions(id, await scrape(place)) };
       cache.set(id, { at: Date.now(), body });
       return json(body);
     } catch (error) {

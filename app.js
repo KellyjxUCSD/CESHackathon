@@ -316,6 +316,17 @@ function startFromRent(id, rent, beds, floorPlan) {
   const count = Math.min(6, Math.max(1, Number(beds) || 1));
   plan.lockedBedrooms = count;
   plan.roommates = Array.from({ length: count }, (_, index) => blankRoom(index));
+  const selected = rentById.get(id)?.plans?.find(item => item.name === plan.floorPlan);
+  if (Array.isArray(selected?.roomDimensions) && selected.roomDimensions.length === count) {
+    selected.roomDimensions.forEach((room, index) => {
+      const length = Number(room.length);
+      const width = Number(room.width);
+      if (!Number.isFinite(length) || !Number.isFinite(width) || length <= 0 || width <= 0) return;
+      plan.roommates[index].name = String(room.name || `Room ${index + 1}`).slice(0, 40);
+      plan.roommates[index].area = Math.round(length * width * 10) / 10;
+      plan.roommates[index].sourceNote = `Auto-filled from the plan: ${room.lengthLabel} × ${room.widthLabel} = ${plan.roommates[index].area} sq ft. You can edit this.`;
+    });
+  }
   persist(); step = 1;
   if (currentPage === 'calculator') renderCalculator(); else location.hash = '/calculator';
 }
@@ -387,6 +398,7 @@ function onCalculatorInput(event) {
   } else if (input.hasAttribute('data-room-area')) {
     if (!input.validity.valid) return;
     room.area = input.valueAsNumber;
+    room.sourceNote = '';
     plan.method = 'rooms';
     const card = input.closest('[data-room-card]');
     card.querySelectorAll('input[name^="room-size-"]').forEach(radio => {
@@ -441,6 +453,7 @@ function onCalculatorChange(event) {
     persist(); refreshPreview();
   } else if (input.name?.startsWith('room-size-')) {
     room.area = Number(input.value);
+    room.sourceNote = '';
     plan.method = 'rooms';
     const card = input.closest('[data-room-card]');
     card.querySelectorAll('.size-row').forEach(row => row.classList.toggle('selected', row.querySelector('input').checked));
