@@ -35,19 +35,30 @@ function milesLabel(miles, fromYou) {
   return fromYou ? `${distance} miles from you` : `${distance} miles away`;
 }
 
+function bedsSummary(place) {
+  const beds = [...new Set(place.bedsOffered || [])].sort((a, b) => a - b);
+  if (!beds.length) return '';
+  if (beds.length === 1) return bedLabel(beds[0]);
+  const contiguous = beds.every((bed, index) => index === 0 || bed === beds[index - 1] + 1);
+  if (!contiguous) return beds.map(bedLabel).join(', ');
+  const start = beds[0] === 0 ? 'Studio' : bedLabel(beds[0]);
+  const last = beds.at(-1);
+  return `${start} to ${last} bedroom${last === 1 ? '' : 's'}`;
+}
+
 function siteLink(place) {
   const label = place.home.includes('google.com/maps') ? 'Open in Google Maps' : `Visit ${place.sourceName}`;
   return `<a class="place-website" href="${escape(place.home)}" target="_blank" rel="noreferrer">${escape(label)}</a>`;
 }
 
 export function exploreShell() {
-  return `<section class="page-intro"><h1>Apartments near La Jolla</h1><p>Drag the map to look around. Tap the map to drop a pin, and the 10 closest apartments show up.</p></section>
+  return `<section class="page-intro"><h1>Apartments near UCSD</h1><p>Drag the map to look around. Scrolling moves this page. Tap the map to drop a pin, and the 10 closest apartments show up.</p></section>
     <section class="map-section" aria-label="Map of apartments">
       <div id="apartment-map" class="apartment-map"><p class="map-fallback">Loading the map…</p></div>
-      <div class="map-bar"><p id="map-status">Drag the map. Tap it to set your spot.</p><button type="button" class="button button-outline" data-near>Use my location</button></div>
+      <div class="map-bar"><p id="map-status">Drag the map. Scrolling moves the page.</p><button type="button" class="button button-outline" data-near>Use my location</button></div>
     </section>
     <section class="browse-section" aria-label="Find an apartment">
-      <label class="search-bar"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><span class="sr-only">Search apartments</span><input id="search" type="search" placeholder="Search any apartment in La Jolla…" autocomplete="off" /></label>
+      <label class="search-bar"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><span class="sr-only">Search apartments</span><input id="search" type="search" placeholder="Search apartments in San Diego…" autocomplete="off" /></label>
       <div class="filter-row"><div class="filters">
         <button class="filter-chip" id="bed-filter" type="button" aria-pressed="false">1 bedroom</button>
         <button class="filter-chip" id="two-bed-filter" type="button" aria-pressed="false">2 bedrooms</button>
@@ -56,8 +67,8 @@ export function exploreShell() {
       </div><p id="results-count" aria-live="polite"></p></div>
       <div id="property-grid" class="place-list"></div>
     </section>
-    <aside class="custom-banner"><div><h2>Have another apartment in mind?</h2><p>Work out a split for any rent.</p></div><a class="button button-outline" href="#/calculator">Open calculator</a></aside>
-    <p class="listing-note">Search looks through every apartment in this area, even if it is off the screen. A price is shown when that apartment’s website can be read. Prices can change.</p>`;
+    <aside class="custom-banner"><div><h2>Have another apartment in mind?</h2><p>Work out a split for any rent.</p></div><a class="button button-outline" href="#/calculator?new=1">Open calculator</a></aside>
+    <p class="listing-note">Search looks through every apartment, even if it is off the screen. A price is shown when that apartment’s website can be read. Prices can change.</p>`;
 }
 
 export function placeCards(list, rentById, here, origin) {
@@ -66,8 +77,9 @@ export function placeCards(list, rentById, here, origin) {
   return list.map((place, index) => {
     const originPoint = from;
     const miles = milesBetween(originPoint, place);
+    const beds = bedsSummary(place);
     const start = place.kind ? startingRent(rentById.get(place.id)) : null;
-    const price = start ? `From ${money(start)}` : (place.kind ? 'See prices' : 'Ask them');
+    const price = start ? `From ${money(start)}` : (place.kind ? 'See prices' : 'See their site');
     const photo = place.photo
       ? `<img class="place-photo" src="${escape(place.photo)}" alt="${escape(place.photoAlt || place.name)}" />`
       : `<span class="place-photo place-photo-fallback" aria-hidden="true">${escape(place.name.slice(0, 1))}</span>`;
@@ -77,7 +89,7 @@ export function placeCards(list, rentById, here, origin) {
           ${photo}
           <span class="place-index">${index + 1}</span>
         </span>
-        <span class="place-copy"><strong>${escape(place.name)}</strong><span class="place-meta">${escape(place.near)} · ${milesLabel(miles, Boolean(here))}</span></span>
+        <span class="place-copy"><strong>${escape(place.name)}</strong><span class="place-meta">${escape([place.near, beds, milesLabel(miles, Boolean(here))].filter(Boolean).join(' · '))}</span></span>
         <span class="place-price"><strong data-price-for="${escape(place.id)}">${price}</strong><span>${start || place.kind ? 'a month' : ''}</span></span>
       </button>
       ${siteLink(place)}
@@ -96,7 +108,10 @@ function planFacts(item) {
 export function placePage(place, result, here) {
   const miles = milesBetween(here || UTC, place);
   const when = readWhen(result?.fetchedAt);
-  let body = place.kind ? '<p class="place-loading">Reading their website…</p>' : '<p class="place-loading">This website does not share a price list we can read. Ask them for the rent.</p>';
+  const beds = bedsSummary(place);
+  let body = place.kind
+    ? '<p class="place-loading">Reading their website…</p>'
+    : `<p class="place-loading">Prices and photos are on their website. That site checks that a person is visiting, so this page cannot copy them.</p>${beds ? `<p class="place-meta">${escape(beds)}</p>` : ''}`;
   if (result?.error) {
     body = `<p class="place-loading">${escape(result.error)}</p><button class="button button-outline" type="button" data-retry="${escape(place.id)}">Try again</button>`;
   } else if (result?.plans) {
@@ -123,7 +138,7 @@ export function placePage(place, result, here) {
     <section class="place-detail">
       ${place.photo ? `<img class="place-hero" src="${escape(place.photo)}" alt="${escape(place.photoAlt || place.name)}" />` : ''}
       <p class="place-kicker">${milesLabel(miles, Boolean(here))}</p><h1>${escape(place.name)}</h1><p class="place-address">${escape(place.address)}</p>
-      <p class="place-source">${result?.plans ? `Prices from ${escape(place.sourceName)}${when ? `, ${when}` : ''}. They can change.` : 'Open their website to ask about rent.'}</p>
+      <p class="place-source">${result?.plans ? `Prices from ${escape(place.sourceName)}${when ? `, ${when}` : ''}. They can change.` : 'Open their website to see the photos and the rent.'}</p>
       ${body}
       <p class="place-site">${siteLink(place)}</p>
     </section>`;

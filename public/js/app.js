@@ -1,6 +1,6 @@
 import { newPlan, normalizePlan, breakdownRows, encodePlan, decodePlan, splitError } from './calculator.js';
 import { calculatorView, liveSplitHTML, featureHint, costLabels, summaryText, rentIsSet, roomAreaText } from './calculator-view.js';
-import { apartments, UTC, milesBetween } from './apartments.js';
+import { apartments, UTC, UCSD, milesBetween } from './apartments.js';
 import { exploreShell, placeCards, placePage, startingRent } from './explore-view.js';
 import { welcomeView } from './welcome.js';
 import { createFloorPlanUpload } from './floor-plan-upload.js';
@@ -221,7 +221,7 @@ function ensureMap() {
     if (!box || map) return;
     if (!ready) { box.innerHTML = '<p class="map-fallback">The map did not open. The apartments are still listed below.</p>'; return; }
     map = new google.maps.Map(box, {
-      center: { lat: 32.864, lng: -117.22 }, zoom: 13, mapTypeControl: false, streetViewControl: false, fullscreenControl: false, clickableIcons: false, gestureHandling: 'greedy',
+      center: { lat: 32.864, lng: -117.22 }, zoom: 13, mapTypeControl: false, streetViewControl: false, fullscreenControl: false, clickableIcons: false, gestureHandling: 'cooperative',
     });
     const bounds = new google.maps.LatLngBounds();
     apartments.forEach(place => bounds.extend(place));
@@ -283,9 +283,9 @@ function useMyLocation() {
     const search = document.querySelector('#search');
     if (search) search.value = '';
     lookMode = 'nearest';
-    const miles = milesBetween(here, { lat: 32.864, lng: -117.22 });
-    mapStatus(miles > 20 ? `You are about ${Math.round(miles)} miles from La Jolla. The 10 closest apartments there are listed.` : 'These are the 10 closest apartments.');
-    if (map && miles <= 20) {
+    const miles = milesBetween(here, UCSD);
+    mapStatus(miles > 30 ? `You are about ${Math.round(miles)} miles from UCSD. The 10 closest apartments there are listed.` : 'These are the 10 closest apartments.');
+    if (map && miles <= 30) {
       suppressMove = true;
       map.panTo(here);
       google.maps.event.addListenerOnce(map, 'idle', () => { suppressMove = false; });
@@ -579,7 +579,7 @@ modal.addEventListener('close', () => {
   const select = document.querySelector('[data-bedrooms]');
   if (select) select.value = String(plan.roommates.length);
 });
-document.querySelector('#about-button').addEventListener('click', () => openModal(`${closeButton()}<div class="text-modal"><h2 id="modal-title">About Rentwise</h2><p>See apartments around La Jolla and UCSD, then work out what each person pays.</p><p>The price is read from that apartment’s website when you open it. Some sites do not share a price list. Prices can change.</p><button class="button button-primary" data-close>Close</button></div>`));
+document.querySelector('#about-button').addEventListener('click', () => openModal(`${closeButton()}<div class="text-modal"><h2 id="modal-title">About Rentwise</h2><p>See apartments around San Diego, then work out what each person pays.</p><p>The price is read from that apartment’s website when you open it. Some sites do not share a price list. Prices can change.</p><button class="button button-primary" data-close>Close</button></div>`));
 document.querySelector('#privacy-button').addEventListener('click', () => openModal(`${closeButton()}<div class="text-modal"><h2 id="modal-title">Your privacy</h2><p>Your calculation stays in this browser. No account is needed.</p><p>Use my location asks the browser where you are. Tapping the map also sets a spot. That location is not saved.</p><p>The map is Google Maps. Share links include the names and amounts in your plan.</p><button class="button button-primary" data-close>Close</button></div>`));
 
 function route() {
@@ -591,11 +591,17 @@ function route() {
     try { floorPlanUpload.reset(); plan = decodePlan(params.get('plan')); const sharedStep = Number(params.get('step')); step = [1, 2, 3].includes(sharedStep) ? sharedStep : 3; persist(); toast('Shared plan opened.'); }
     catch { step = 1; toast('This link could not be opened.'); }
     history.replaceState(null, '', `${location.pathname}${location.search}#/calculator`);
+  } else if (currentPage === 'calculator' && params.has('new')) {
+    floorPlanUpload.reset();
+    plan = newPlan();
+    step = 1;
+    persist();
+    history.replaceState(null, '', `${location.pathname}${location.search}#/calculator`);
   }
   const section = currentPage === 'calculator' ? 'calculator' : currentPage === 'welcome' ? '' : 'explore';
   document.querySelectorAll('[data-nav]').forEach(link => { if (link.dataset.nav === section) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current'); });
   const place = apartments.find(item => item.id === placeId);
-  document.title = `${currentPage === 'calculator' ? 'Rent Calculator' : currentPage === 'welcome' ? 'Welcome' : place ? place.name : 'Apartments near La Jolla'} — Rentwise`;
+  document.title = `${currentPage === 'calculator' ? 'Rent Calculator' : currentPage === 'welcome' ? 'Welcome' : place ? place.name : 'Apartments near UCSD'} — Rentwise`;
   if (currentPage === 'calculator') renderCalculator();
   else if (currentPage === 'welcome') {
     main.className = 'welcome-page'; main.innerHTML = welcomeView();

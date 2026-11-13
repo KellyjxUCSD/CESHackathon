@@ -3,7 +3,7 @@ import { floorPlanText, planRooms } from '../../roommate-split/floor-plan.js';
 export function createFloorPlanUpload({ getPlan, applyRooms }) {
   const panel = document.createElement('div');
   panel.className = 'floor-plan-upload';
-  panel.innerHTML = `<label class="field upload-field"><span>Apartment floor plan</span><input type="file" accept="image/*,.heic,.heif,application/pdf" aria-label="Upload floor plan" /></label><p class="choice-hint">Your file stays in this tab. Room details are saved on this device.</p><p class="upload-status" role="status"></p><div class="upload-preview"></div>`;
+  panel.innerHTML = `<label class="field upload-field"><span>Apartment floor plan</span><input type="file" accept="image/*,.heic,.heif,application/pdf" aria-label="Upload floor plan" /></label><p class="upload-status" role="status"></p><div class="upload-preview"></div>`;
   const status = panel.querySelector('.upload-status'), preview = panel.querySelector('.upload-preview');
   let revision = 0, url;
   const reset = () => { revision++; if (url) URL.revokeObjectURL(url); url = null; preview.replaceChildren(); status.textContent = ''; };

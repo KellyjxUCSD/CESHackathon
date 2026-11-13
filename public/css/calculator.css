@@ -50,6 +50,15 @@
 .bedroom-lock-note { margin: 6px 0 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
 .calculator-wizard .field > input,
 .calculator-wizard .field > select { min-height: 46px; font-size: 14px; }
+.field > select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 48px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' stroke='%23111827' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 22px center;
+  background-size: 12px 8px;
+}
 .calculator-wizard .currency-input { min-height: 46px; }
 .calculator-wizard .currency-input input { font-size: 16px; }
 

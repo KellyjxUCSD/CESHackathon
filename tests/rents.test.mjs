@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { apartments, UTC, milesBetween } from '../public/js/apartments.js';
+import { apartments, UCSD, milesBetween } from '../public/js/apartments.js';
 import { parseJonah, parseRealpage, parseG5, parseSchemaOffers, parseFloorplanCards } from '../server/rents.mjs';
 import { startingRent } from '../public/js/explore-view.js';
 
@@ -33,14 +33,16 @@ test('RealPage and G5 responses become the same price shape', () => {
   assert.equal(g5[0].available, 7);
 });
 
-test('every listed apartment is a real community in the La Jolla area', () => {
-  assert.ok(apartments.length >= 15);
+test('every listed apartment is a real community in the San Diego area', () => {
+  assert.ok(apartments.length >= 35);
   assert.ok(apartments.some(place => place.name === 'Costa Verde Village'));
-  assert.ok(apartments.some(place => place.name === 'Towers at Costa Verde'));
+  assert.ok(apartments.some(place => place.name === 'Bay Apartments'));
+  assert.ok(apartments.some(place => place.name === 'Instrata Little Italy'));
+  assert.ok(apartments.some(place => place.name === 'Array La Mesa'));
   for (const place of apartments) {
-    assert.ok(milesBetween(UTC, place) < 6, place.name);
-    assert.ok(place.lat > 32.84 && place.lat < 32.90, place.name);
-    assert.ok(place.lng > -117.28 && place.lng < -117.17, place.name);
+    assert.ok(milesBetween(UCSD, place) < 18, `${place.name} ${milesBetween(UCSD, place)}`);
+    assert.ok(place.lat > 32.70 && place.lat < 32.98, place.name);
+    assert.ok(place.lng > -117.28 && place.lng < -117.00, place.name);
     assert.ok(place.home.startsWith('https://'));
     if (place.photo) assert.ok(place.photo.startsWith('assets/'));
   }
