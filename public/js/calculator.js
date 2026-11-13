@@ -8,6 +8,7 @@ export const DEFAULT_PLAN = {
   property: '', rent: '', utilities: 0, internet: 0, parking: 0,
   insurance: 0, deposit: 0, fee: 0, includeFirst: false, lease: 12,
   method: 'weighted', splitVersion: 2, commonSpace: 'average', dimensionUnit: 'ft', extraFees: [], billSplits: {},
+  floorPlan: '', floorPlanPropertyId: '', floorPlanImage: '',
   roommates: [{ name: 'Room 1', area: 100, occupants: 1, windows: 'normal', closet: 'normal', bath: 'shared', names: blankNames(), budgets: ['', ''], length: '', width: '', kind: 'bedroom', preference: 1 },
     { name: 'Room 2', area: 100, occupants: 1, windows: 'normal', closet: 'normal', bath: 'shared', names: blankNames(), budgets: ['', ''], length: '', width: '', kind: 'bedroom', preference: 1 }],
 };
@@ -34,6 +35,13 @@ export function normalizePlan(value) {
   if (value.dimensionUnit === 'm') plan.dimensionUnit = 'm';
   if (['small', 'average', 'large'].includes(value.commonSpace)) plan.commonSpace = value.commonSpace;
   if (typeof value.floorPlan === 'string') plan.floorPlan = value.floorPlan.slice(0, 80);
+  if (typeof value.floorPlanPropertyId === 'string' && /^[a-z0-9-]{1,80}$/i.test(value.floorPlanPropertyId)) plan.floorPlanPropertyId = value.floorPlanPropertyId;
+  if (typeof value.floorPlanImage === 'string') {
+    try {
+      const image = new URL(value.floorPlanImage);
+      if (image.protocol === 'https:' || image.protocol === 'http:') plan.floorPlanImage = image.href.slice(0, 2000);
+    } catch { /* Ignore an invalid saved image URL. */ }
+  }
   if (Array.isArray(value.roommates) && value.roommates.length >= 1 && value.roommates.length <= 12) {
     plan.roommates = value.roommates.map((person, index) => ({
       name: typeof person?.name === 'string' ? person.name.slice(0, 40) : `Roommate ${index + 1}`,

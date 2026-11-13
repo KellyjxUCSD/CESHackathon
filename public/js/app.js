@@ -346,6 +346,14 @@ function publishedRooms(id, floorPlan) {
     return next;
   });
 }
+function selectedFloorPlan(id, floorPlan) {
+  return rentById.get(id)?.plans?.find(item => item.name === floorPlan) || null;
+}
+function attachFloorPlan(planToUpdate, id, floorPlan) {
+  const selected = selectedFloorPlan(id, floorPlan);
+  planToUpdate.floorPlanPropertyId = id;
+  planToUpdate.floorPlanImage = selected?.image || '';
+}
 function startFromRent(id, rent, beds, floorPlan) {
   const place = apartments.find(item => item.id === id);
   if (!place || !Number(rent)) return;
@@ -353,6 +361,7 @@ function startFromRent(id, rent, beds, floorPlan) {
   plan = newPlan();
   plan.property = place.name;
   plan.floorPlan = String(floorPlan || '').slice(0, 80);
+  attachFloorPlan(plan, id, floorPlan);
   plan.rent = Math.round(Number(rent) * 100) / 100;
   const count = Math.min(6, Math.max(1, Number(beds) || 1));
   plan.lockedBedrooms = count;
@@ -368,6 +377,7 @@ function startFromPlan(id, beds, floorPlan) {
   plan = newPlan();
   plan.property = place.name;
   plan.floorPlan = String(floorPlan || '').slice(0, 80);
+  attachFloorPlan(plan, id, floorPlan);
   const count = Math.min(6, Math.max(1, Number(beds) || 1));
   plan.roommates = publishedRooms(id, floorPlan) || Array.from({ length: count }, (_, index) => blankRoom(index));
   plan.lockedBedrooms = plan.roommates.length;
@@ -591,7 +601,7 @@ document.addEventListener('click', event => {
   if (button.hasAttribute('data-reset')) openModal(`${closeButton()}<div class="text-modal"><h2 id="modal-title">Start over?</h2><p>This clears the rent, the rooms, and the split saved on this device.</p><div class="modal-actions"><button class="text-button" type="button" data-close>Keep this split</button><button class="button button-primary" type="button" data-confirm-reset>Start over</button></div></div>`);
   if (button.hasAttribute('data-confirm-reset')) { floorPlanUpload.reset(); plan = newPlan(); step = 1; persist(); modal.close(); renderCalculator(true); toast('Calculation reset.'); }
   if (button.dataset.confirmBedrooms) { applyBedroomCount(Number(button.dataset.confirmBedrooms)); modal.close(); }
-  if (button.hasAttribute('data-custom')) { plan.property = ''; delete plan.floorPlan; delete plan.lockedBedrooms; step = 1; persist(); renderCalculator(); document.querySelector('[data-money="rent"]').focus(); }
+  if (button.hasAttribute('data-custom')) { plan.property = ''; delete plan.floorPlan; delete plan.floorPlanPropertyId; delete plan.floorPlanImage; delete plan.lockedBedrooms; step = 1; persist(); renderCalculator(); document.querySelector('[data-money="rent"]').focus(); }
   if (button.hasAttribute('data-share')) sharePlan();
   if (button.hasAttribute('data-summary')) copySummary();
   if (button.hasAttribute('data-download')) downloadBreakdown();
