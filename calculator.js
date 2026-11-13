@@ -127,8 +127,10 @@ export function calculate(value) {
   };
 }
 
-const dollars = cents => (cents / 100).toFixed(2);
 const figure = value => String(Math.round(value * 1000000) / 1000000);
+const money = cents => `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const SIZE_NAME = { 50: 'Tiny', 65: 'Small', 80: 'A bit small', 100: 'Normal', 125: 'Generous', 160: 'Large', 200: 'Enormous' };
+const sizeLabel = area => SIZE_NAME[area] ? `${SIZE_NAME[area]} (${area})` : String(area);
 
 function weightLine(trace, room) {
   if (trace.method === 'equal') return `${room.occupants} ÷ ${trace.headcount} = ${figure(room.weight)}`;
@@ -138,112 +140,157 @@ function weightLine(trace, room) {
   return `${figure(trace.commonShare)} × (${room.occupants} ÷ ${trace.headcount}) + ${figure(1 - trace.commonShare)} × (${figure(room.qualityArea)} ÷ ${figure(trace.totalQualityArea)}) = ${figure(commonPart)} + ${figure(roomPart)} = ${figure(room.weight)}`;
 }
 
-function centLines(title, cents, weights, labels) {
+function personLabel(plan, room, index, slot) {
+  const named = plan.roommates[index]?.names?.[slot]?.trim();
+  return named || (room.occupants === 1 ? room.name : `${room.name}, person ${slot + 1}`);
+}
+
+function addSplitTable(rows, cents, weights, labels) {
+  if (!cents) {
+    rows.push(['Nothing to split', money(0)]);
+    return;
+  }
   const split = centSplit(cents, weights);
-  const rows = [[title], ['Total cents', cents, `${dollars(cents)} dollars`]];
+  const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
+  const alreadyShares = Math.abs(weightTotal - 1) < 0.000001;
+  rows.push(['Total', money(cents), `${cents} cents`]);
+  rows.push(['Room', 'How the cents were worked out', 'Cents before rounding', 'Whole cents kept', 'Extra cents', 'Final cents', 'Dollars']);
   labels.forEach((label, index) => {
-    rows.push([label, 'unrounded cents', figure(split.raw[index])]);
-    rows.push([label, 'cents before leftovers', split.floors[index]]);
-    rows.push([label, 'leftover cents received', split.extra[index]]);
-    rows.push([label, 'final cents', split.amounts[index], `${dollars(split.amounts[index])} dollars`]);
+    const share = weightTotal ? weights[index] / weightTotal : 0;
+    const workedOut = alreadyShares
+      ? `${figure(share)} × ${cents} cents = ${figure(split.raw[index])}`
+      : `${figure(weights[index])} of ${figure(weightTotal)} × ${cents} cents = ${figure(split.raw[index])}`;
+    rows.push([label, workedOut, figure(split.raw[index]), split.floors[index], split.extra[index], split.amounts[index], money(split.amounts[index])]);
   });
-  rows.push(['Check', 'final cents add up to', split.amounts.reduce((sum, amount) => sum + amount, 0)]);
-  return rows;
+  rows.push(['Check', 'These amounts add up to', money(split.amounts.reduce((sum, amount) => sum + amount, 0))]);
 }
 
 export function breakdownRows(value) {
   const plan = normalizePlan(value);
   const result = calculate(plan);
   const trace = result.trace;
-  const methodName = trace.method === 'equal' ? 'Equal per person' : trace.method === 'size' ? 'Half equal, half by room size' : 'Room size and features';
-  const rows = [
-    ['Rentwise — how this split is calculated'],
-    ['Apartment', plan.property || 'Custom apartment'],
-    ...(plan.floorPlan ? [['Floor plan', plan.floorPlan]] : []),
-    ['Monthly rent ($)', dollars(trace.rentCents)],
-    ['Monthly bills ($)', dollars(trace.extrasCents)],
-    ['Utilities ($)', plan.utilities],
-    ['Internet ($)', plan.internet],
-    ['Parking ($)', plan.parking],
-    ['Insurance and other ($)', plan.insurance],
-    ['Security deposit ($)', dollars(trace.depositCents)],
-    ['Application fees ($)', dollars(trace.feeCents)],
-    ['Include first month at move-in', plan.includeFirst ? 'Yes' : 'No'],
-    ['Split method', methodName],
-    [],
-    ['Step 1. Each room gets a weight. Weights add up to 1. Rent cents are total rent cents times that weight.'],
-  ];
-  if (trace.method === 'rooms') {
-    rows.push(['Common spaces', plan.commonSpace]);
-    rows.push(['Common-space share', figure(trace.commonShare), 'This part of the rent is split by person.']);
-    rows.push(['Room share', figure(1 - trace.commonShare), 'This part follows each room’s quality area.']);
-    rows.push(['Quality area', 'square feet × windows × closet × bathroom']);
-    rows.push(['Windows', 'none × 0.9, normal × 1, large × 1.05']);
-    rows.push(['Closet', 'none × 0.95, normal × 1, large × 1.08']);
-    rows.push(['Bathroom', 'shared × 1, half × 1.06, private × 1.12']);
-    rows.push(['Total quality area', figure(trace.totalQualityArea)]);
-  } else if (trace.method === 'size') {
-    rows.push(['Weight', '0.5 ÷ number of rooms + 0.5 × (this room’s square feet ÷ all square feet)']);
-    rows.push(['Total square feet', trace.totalArea]);
-  } else {
-    rows.push(['Weight', 'people in this room ÷ people in the apartment']);
-  }
+  const people = [];
+  result.people.forEach((room, index) => {
+    room.residents.forEach((person, slot) => people.push({ label: personLabel(plan, room, index, slot), room, person }));
+  });
+  const shownMonthly = allocateCents(Math.round(result.monthly / 100), people.map(item => item.person.monthly));
+  const shownMoveIn = allocateCents(Math.round(result.moveIn / 100), people.map(item => item.person.moveIn));
+  const methodName = trace.method === 'equal' ? 'Everyone pays the same' : trace.method === 'size' ? 'Half equal, half by room size' : 'By room size and features';
+  const rows = [];
+
+  rows.push(['Rentwise rent split']);
+  rows.push(['Start here', 'The first table is the answer. The steps under it show the math.']);
+  rows.push([]);
+  rows.push(['The answer']);
+  rows.push(['Person', 'Each month', 'At move-in']);
+  people.forEach((item, index) => rows.push([item.label, money(shownMonthly[index] * 100), money(shownMoveIn[index] * 100)]));
+  rows.push(['Everyone together', money(shownMonthly.reduce((sum, amount) => sum + amount, 0) * 100), money(shownMoveIn.reduce((sum, amount) => sum + amount, 0) * 100)]);
+  rows.push(['These are the same whole dollars shown on the page.']);
+  rows.push([]);
+
+  rows.push(['What we started with']);
+  rows.push(['Item', 'Amount']);
+  rows.push(['Apartment', plan.property || 'Custom apartment']);
+  if (plan.floorPlan) rows.push(['Floor plan', plan.floorPlan]);
+  rows.push(['Monthly rent', money(trace.rentCents)]);
+  rows.push(['Utilities', money(Math.round(plan.utilities * 100))]);
+  rows.push(['Internet', money(Math.round(plan.internet * 100))]);
+  rows.push(['Parking', money(Math.round(plan.parking * 100))]);
+  rows.push(['Insurance and other', money(Math.round(plan.insurance * 100))]);
+  rows.push(['Monthly bills together', money(trace.extrasCents)]);
+  rows.push(['Security deposit', money(trace.depositCents)]);
+  rows.push(['Application fees', money(trace.feeCents)]);
+  rows.push(['First month included at move-in', plan.includeFirst ? 'Yes' : 'No']);
+  rows.push(['How the rent is split', methodName]);
+  rows.push(['Rooms', trace.count]);
   rows.push(['People', trace.headcount]);
+  rows.push([]);
+
+  rows.push(['Step 1', 'Find each room’s share of the rent']);
+  if (trace.method === 'equal') {
+    rows.push(['In plain words', 'Every person pays the same share of the rent.']);
+    rows.push(['The formula', 'Share = people in this room ÷ people in the apartment']);
+  } else if (trace.method === 'size') {
+    rows.push(['In plain words', 'Half of the rent is shared equally by the rooms. The other half follows room size.']);
+    rows.push(['The formula', 'Share = 0.5 ÷ number of rooms + 0.5 × (this room’s size ÷ all sizes)']);
+    rows.push(['All room sizes added together', trace.totalArea]);
+  } else {
+    const sharedWords = { small: 'Small shared spaces. 35% of the rent is split by person.', average: 'Average shared spaces. 50% of the rent is split by person.', large: 'Large shared spaces. 65% of the rent is split by person.' };
+    rows.push(['In plain words', 'Part of the rent pays for the living room, kitchen, and shared bathrooms, so that part is split by person. The rest follows each room.']);
+    rows.push(['Shared spaces', sharedWords[plan.commonSpace]]);
+    rows.push(['Shared-space share', figure(trace.commonShare)]);
+    rows.push(['Room share', figure(1 - trace.commonShare)]);
+    rows.push(['A room’s score', 'size × windows × closet × bathroom']);
+    rows.push(['Windows', 'No windows × 0.9. Normal windows × 1. Large windows × 1.05.']);
+    rows.push(['Closet', 'No closet × 0.95. Normal closet × 1. Large closet × 1.08.']);
+    rows.push(['Bathroom', 'Shared bathroom × 1. Half bathroom × 1.06. Private bathroom × 1.12.']);
+    rows.push(['All room scores added together', figure(trace.totalQualityArea)]);
+    rows.push(['The formula', 'Share = shared-space share × (people in this room ÷ all people) + room share × (this room’s score ÷ all scores)']);
+  }
+  rows.push(['Room', 'People', 'Size', 'How this share was calculated', 'Share', 'Rent before rounding']);
   trace.rooms.forEach(room => {
-    rows.push([]);
-    rows.push(['Room', room.name]);
-    rows.push(['People in this room', room.occupants]);
-    if (trace.method === 'rooms') {
-      rows.push(['Square feet', room.area]);
-      rows.push(['Windows', `${room.windows} × ${room.windowFactor}`]);
-      rows.push(['Closet', `${room.closet} × ${room.closetFactor}`]);
-      rows.push(['Bathroom', `${room.bath} × ${room.bathFactor}`]);
-      rows.push(['Quality area', `${room.area} × ${room.windowFactor} × ${room.closetFactor} × ${room.bathFactor} = ${figure(room.qualityArea)}`]);
-    } else if (trace.method === 'size') rows.push(['Square feet', room.area]);
-    rows.push(['Weight', weightLine(trace, room)]);
-    rows.push(['Unrounded rent ($)', dollars(trace.rentCents * room.weight)]);
+    const score = trace.method === 'rooms'
+      ? `${room.area} × ${room.windowFactor} × ${room.closetFactor} × ${room.bathFactor} = ${figure(room.qualityArea)}. ${weightLine(trace, room)}`
+      : weightLine(trace, room);
+    rows.push([room.name, room.occupants, sizeLabel(room.area), score, figure(room.weight), money(trace.rentCents * room.weight)]);
   });
+  rows.push(['The shares add up to', figure(trace.weights.reduce((sum, weight) => sum + weight, 0))]);
   rows.push([]);
-  rows.push(['Step 2. Turn the unrounded rent into whole cents.']);
-  rows.push(['Rule', 'Start with the cents before the fraction. Give each leftover cent to the room with the largest fraction. If two fractions match, the earlier room gets the cent.']);
-  rows.push(...centLines('Rent split', trace.rentCents, trace.weights, trace.rooms.map(room => room.name)));
+
+  rows.push(['Step 2', 'Turn the rent shares into exact cents']);
+  rows.push(['In plain words', 'Rent is counted in cents so no money is lost. Keep the whole cents. Give each leftover cent to the room with the biggest fraction. If two fractions match, the earlier room gets that cent.']);
+  addSplitTable(rows, trace.rentCents, trace.weights, trace.rooms.map(room => room.name));
   rows.push([]);
-  rows.push(['Step 3. Monthly bills are split by person, not by room size.']);
-  rows.push(...centLines('Bills split', trace.extrasCents, trace.rooms.map(room => room.occupants), trace.rooms.map(room => room.name)));
+
+  rows.push(['Step 3', 'Split the monthly bills by person']);
+  rows.push(['In plain words', 'Bills do not follow room size. A room with two people pays for two people.']);
+  addSplitTable(rows, trace.extrasCents, trace.rooms.map(room => room.occupants), trace.rooms.map(room => room.name));
   rows.push([]);
-  rows.push(['Step 4. The deposit follows the rent weights. Application fees follow the people.']);
-  rows.push(...centLines('Deposit split', trace.depositCents, trace.weights, trace.rooms.map(room => room.name)));
-  rows.push(...centLines('Application fees', trace.feeCents, trace.rooms.map(room => room.occupants), trace.rooms.map(room => room.name)));
+
+  rows.push(['Step 4', 'Split the deposit and the fees']);
+  rows.push(['In plain words', 'The deposit uses the same shares as the rent. Fees are split by person.']);
+  rows.push(['Deposit']);
+  addSplitTable(rows, trace.depositCents, trace.weights, trace.rooms.map(room => room.name));
+  rows.push(['Application fees']);
+  addSplitTable(rows, trace.feeCents, trace.rooms.map(room => room.occupants), trace.rooms.map(room => room.name));
   rows.push([]);
-  rows.push(['Step 5. If two people share a room, that room’s cents are split the same way, one cent at a time.']);
-  result.people.forEach((room, index) => {
-    room.residents.forEach((person, slot) => {
-      const named = plan.roommates[index]?.names?.[slot]?.trim();
-      const label = named || (room.occupants === 1 ? room.name : `${room.name} person ${slot + 1}`);
-      rows.push([label, 'rent ($)', dollars(person.rent), 'bills ($)', dollars(person.bills), 'monthly ($)', dollars(person.monthly)]);
-      rows.push([label, 'move-in ($)', dollars(person.moveIn), plan.includeFirst ? 'deposit share + fee share + this person’s first month' : 'deposit share + fee share']);
+
+  rows.push(['Step 5', 'Split a shared room between the people in it']);
+  const shared = result.people.filter(room => room.occupants > 1);
+  if (!shared.length) rows.push(['In plain words', 'Every room has one person, so the room’s amount is already that person’s amount.']);
+  else {
+    rows.push(['In plain words', 'Two people in one room split that room’s cents evenly. An odd leftover cent goes to the first person.']);
+    rows.push(['Room', 'What is being split', 'Cents', 'Person 1', 'Person 2']);
+    result.people.forEach((room, index) => {
+      if (room.occupants < 2) return;
+      [['Room rent', room.rent], ['Room bills', room.bills], ['Room deposit', room.deposit], ['Room fees', room.fee]].forEach(([name, cents]) => {
+        if (!cents && name !== 'rent') return;
+        const split = centSplit(cents, [1, 1]);
+        const first = personLabel(plan, room, index, 0);
+        const second = personLabel(plan, room, index, 1);
+        rows.push([room.name, name, cents, `${first}: ${split.amounts[0]} cents (${money(split.amounts[0])})`, `${second}: ${split.amounts[1]} cents (${money(split.amounts[1])})`]);
+      });
     });
-    if (room.occupants > 1) {
-      const split = centSplit(room.rent, [1, 1]);
-      rows.push([room.name, 'room rent cents', room.rent, 'person 1 cents', split.amounts[0], 'person 2 cents', split.amounts[1]]);
-    }
-  });
-  const monthlyCents = result.people.flatMap(room => room.residents.map(person => person.monthly));
-  const shown = allocateCents(Math.round(result.monthly / 100), monthlyCents);
+  }
   rows.push([]);
-  rows.push(['Step 6. The summary page shows whole dollars.']);
-  rows.push(['Rule', 'Round the household monthly total to the nearest dollar, then hand out those dollars with the same weights, so the dollars still add up.']);
-  rows.push(['Household monthly cents', result.monthly, 'nearest dollar', Math.round(result.monthly / 100)]);
-  let personIndex = 0;
-  result.people.forEach((room, index) => {
-    room.residents.forEach((person, slot) => {
-      const named = plan.roommates[index]?.names?.[slot]?.trim();
-      const label = named || (room.occupants === 1 ? room.name : `${room.name} person ${slot + 1}`);
-      rows.push([label, 'exact monthly ($)', dollars(person.monthly), 'shown on the page ($)', shown[personIndex]]);
-      personIndex += 1;
-    });
-  });
-  rows.push(['Shown dollars add up to', shown.reduce((sum, amount) => sum + amount, 0)]);
+  rows.push(['Each person, exact amount']);
+  rows.push(['Person', 'Rent', 'Bills', 'Each month', 'At move-in', 'Move-in includes']);
+  people.forEach(item => rows.push([
+    item.label,
+    money(item.person.rent),
+    money(item.person.bills),
+    money(item.person.monthly),
+    money(item.person.moveIn),
+    plan.includeFirst ? 'Deposit share + fee share + this person’s first month' : 'Deposit share + fee share',
+  ]));
+  rows.push([]);
+
+  rows.push(['Step 6', 'Why the page shows whole dollars']);
+  rows.push(['In plain words', 'The page rounds the household total to the nearest dollar, then hands out those dollars using the same shares. The dollars still add up.']);
+  rows.push(['Exact monthly total', money(result.monthly), 'Nearest dollar', `$${Math.round(result.monthly / 100).toLocaleString('en-US')}`]);
+  rows.push(['Person', 'Exact monthly amount', 'Shown on the page']);
+  people.forEach((item, index) => rows.push([item.label, money(item.person.monthly), money(shownMonthly[index] * 100)]));
+  rows.push(['Shown dollars add up to', `$${shownMonthly.reduce((sum, amount) => sum + amount, 0).toLocaleString('en-US')}`]);
   return rows;
 }
 

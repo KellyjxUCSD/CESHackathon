@@ -210,11 +210,15 @@ test('a floor plan keeps its bedroom count, and the csv shows the weight math', 
   Object.assign(plan, { rent: 4000, method: 'size', floorPlan: 'Large and small' });
   plan.roommates = [{ name: 'Small room', area: 100, occupants: 1, windows: 'normal', closet: 'normal', bath: 'shared', names: ['', ''] }, { name: 'Large room', area: 300, occupants: 1, windows: 'normal', closet: 'normal', bath: 'shared', names: ['', ''] }];
   const text = breakdownRows(plan).map(row => row.join(' ')).join('\n');
+  assert.match(text, /The answer/);
+  assert.match(text, /Small room \$1,500\.00/);
+  assert.match(text, /Large room \$2,500\.00/);
   assert.match(text, /0\.5 ÷ 2 \+ 0\.5 × \(100 ÷ 400\)/);
   assert.match(text, /0\.5 ÷ 2 \+ 0\.5 × \(300 ÷ 400\)/);
-  assert.match(text, /final cents 150000/);
-  assert.match(text, /final cents 250000/);
-  assert.match(text, /Shown dollars add up to 4000/);
+  assert.match(text, /Final cents/);
+  assert.match(text, /150000/);
+  assert.match(text, /250000/);
+  assert.match(text, /Shown dollars add up to \$4,000/);
   const result = calculate(plan);
   assert.equal(result.people[0].rent + result.people[1].rent, result.rent);
 });
