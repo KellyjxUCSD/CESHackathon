@@ -1,0 +1,253 @@
+/* A quiet, three-step rent calculator. Explore keeps its existing design. */
+.calculator-wizard {
+  max-width: 704px;
+  padding-top: 30px;
+}
+
+.calculator-wizard .calculator-intro { margin: 22px 0 26px; }
+.calculator-wizard .calculator-intro h1 { font-size: 30px; }
+.calculator-wizard .calculator-intro > p { font-size: 14px; margin-top: 7px; }
+.calculator-wizard .selected-property { font-size: 12px; }
+.calculator-wizard .calculator-form { display: block; }
+.calculator-wizard .field > span { font-size: 13px; margin-bottom: 9px; }
+.locked-bedrooms { margin: 0; font-size: 18px; font-weight: 650; letter-spacing: -.3px; }
+.bedroom-lock-note { margin: 6px 0 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
+.calculator-wizard .field > input,
+.calculator-wizard .field > select { min-height: 46px; font-size: 14px; }
+.calculator-wizard .currency-input { min-height: 46px; }
+.calculator-wizard .currency-input input { font-size: 16px; }
+
+.wizard-progress { display: flex; margin-bottom: 25px; }
+.wizard-progress button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  padding: 13px 8px 15px;
+  border-bottom: 2px solid var(--line);
+  background: none;
+  font-size: 12px;
+  color: var(--muted);
+  opacity: 1;
+}
+.wizard-progress button > span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #dce0e6;
+  border-radius: 50%;
+  font-size: 11px;
+}
+.wizard-progress .current { border-bottom-color: var(--ink); color: var(--ink); font-weight: 650; }
+.wizard-progress .current > span { background: var(--ink); border-color: var(--ink); color: white; }
+.wizard-progress .done { color: var(--ink); }
+.wizard-progress .done > span { border-color: #9ca3af; }
+.wizard-progress button:disabled { color: #929baa; }
+
+.wizard-card { background: white; border: 1px solid var(--line); border-radius: 12px; padding: 28px; }
+.wizard-card h2 { font-size: 19px; letter-spacing: -.5px; }
+.rent-questions { margin-top: 27px; display: grid; grid-template-columns: 1.35fr 1fr; gap: 23px; }
+.rent-questions .currency-input { min-height: 54px; }
+.rent-questions .currency-input input { font-size: 25px; font-weight: 650; letter-spacing: -.5px; }
+.rent-questions .currency-input > span { font-size: 21px; padding-left: 15px; }
+.rent-questions .bedroom-field > select { min-height: 54px; }
+
+.calculator-wizard details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 17px 0;
+}
+.calculator-wizard details > summary::-webkit-details-marker { display: none; }
+.calculator-wizard details > summary::before { content: '+'; font-size: 17px; font-weight: 400; }
+.calculator-wizard details[open] > summary::before { content: '−'; }
+.calculator-wizard details > summary > span { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 400; text-align: right; }
+.optional-costs { border-top: 1px solid var(--line); margin-top: 28px; }
+.optional-costs + .optional-costs { margin-top: 0; }
+.group-note { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
+.wizard-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 19px 18px; padding: 7px 0 6px; }
+.optional-costs .checkbox-label { font-size: 11px; margin-top: 13px; }
+.wizard-actions { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--line); }
+.wizard-actions .button { min-height: 46px; font-size: 13px; padding: 11px 21px; }
+.wizard-actions .text-button { font-size: 12px; }
+.wizard-autosave { font-size: 10px; color: var(--muted); }
+.wizard-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; font-size: 10px; color: var(--muted); }
+.wizard-bottom .text-button { font-size: 10px; }
+
+.room-step-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; margin-bottom: 8px; }
+.room-step-heading > p { color: var(--muted); font-size: 12px; }
+.room-step-heading > p > span { margin: 0 5px; }
+.split-choice { display: flex; padding: 3px; border-radius: 7px; background: #edf0f3; }
+.split-choice .choice { border: 0; border-radius: 5px; font-size: 11px; padding: 7px 12px; min-height: 32px; color: var(--muted); }
+.split-choice .choice.selected { background: white; color: var(--ink); box-shadow: 0 1px 3px #11182710; }
+.choice { position: relative; display: flex; justify-content: center; align-items: center; padding: 12px; min-height: 46px; border: 1px solid var(--line); border-radius: 7px; background: white; cursor: pointer; font-size: 13px; }
+.choice input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.choice:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 3px; }
+.choice.selected { background: var(--fill); border-color: var(--ink); color: var(--ink); font-weight: 600; }
+.room-tabs { display: flex; gap: 7px; overflow-x: auto; padding: 4px 3px 12px; margin: -4px -3px 0; }
+.room-tabs button { min-height: 38px; max-width: 170px; flex-shrink: 0; padding: 8px 14px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); font-size: 12px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+.room-tabs button[aria-selected=true] { background: white; border-color: var(--ink); color: var(--ink); font-weight: 600; }
+.room-card-heading { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 23px; }
+.room-card-heading > span { font-size: 11px; color: var(--muted); }
+.room-name-field { max-width: 100%; }
+.size-choice, .factor-choice, .other-factors { margin-top: 23px; }
+.size-choice legend, .factor-choice legend, .other-factors legend, .common-question legend { font-size: 13px; font-weight: 500; margin-bottom: 11px; }
+.size-scale { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.size-row { position: relative; display: grid; grid-template-columns: 16px 1fr auto 48px; align-items: center; gap: 10px; min-height: 40px; padding: 4px 12px; border-top: 1px solid var(--line); cursor: pointer; }
+.size-row:first-child { border-top: 0; }
+.size-row.selected { background: var(--fill); }
+.size-row input, .common-option input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.size-row::before { content: ""; width: 14px; height: 14px; border: 1.5px solid var(--line); border-radius: 50%; pointer-events: none; }
+.size-row > span, .common-option > span { pointer-events: none; }
+.size-row.selected::before { border-color: var(--ink); box-shadow: inset 0 0 0 3px var(--fill), inset 0 0 0 7px var(--ink); }
+.size-row:has(input:focus-visible), .common-option:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: -2px; }
+.size-name { font-size: 14px; }
+.size-row.selected .size-name { font-weight: 600; }
+.size-sq { color: var(--muted); font-size: 12px; }
+.size-block { display: block; justify-self: end; background: var(--ink); border-radius: 3px; opacity: .28; }
+.size-row.selected .size-block, .common-option.selected .size-block { opacity: 1; }
+.size-block[data-size="50"] { width: 14px; height: 14px; }
+.size-block[data-size="65"] { width: 18px; height: 18px; }
+.size-block[data-size="80"] { width: 22px; height: 22px; }
+.size-block[data-size="100"] { width: 26px; height: 26px; }
+.size-block[data-size="125"] { width: 32px; height: 32px; }
+.size-block[data-size="160"] { width: 38px; height: 38px; }
+.size-block[data-size="200"] { width: 46px; height: 46px; }
+.size-block[data-size="small"] { width: 28px; height: 28px; }
+.size-block[data-size="average"] { width: 40px; height: 40px; }
+.size-block[data-size="large"] { width: 52px; height: 52px; }
+.exact-size { max-width: 160px; margin-top: 14px; }
+.choice-hint:empty { display: none; }
+.factor-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.other-factors { display: flex; flex-direction: column; gap: 8px; }
+.other-factors .checkbox-label { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 14px; min-height: 32px; }
+.other-factors .checkbox-label input { width: 16px; height: 16px; accent-color: var(--ink); }
+.choice-hint, .method-hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+.method-hint { margin: 0 0 16px; max-width: 62ch; line-height: 1.5; }
+.common-question { margin-bottom: 22px; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
+.common-question > p { color: var(--muted); font-size: 12px; margin: -4px 0 14px; }
+.common-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.common-option { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 10px; min-height: 108px; padding: 14px 8px; border: 1px solid var(--line); border-radius: 9px; background: white; cursor: pointer; font-size: 13px; }
+.common-option.selected { background: var(--fill); border-color: var(--ink); font-weight: 600; }
+.common-question .choice-hint { margin-bottom: 0; }
+.live-split { position: sticky; top: 0; z-index: 2; margin-bottom: 16px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: white; box-shadow: 0 0 0 10px var(--bg); }
+.live-split > p { color: var(--muted); font-size: 12px; }
+.live-split > p > span { color: var(--light, var(--muted)); }
+.live-split ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.live-split li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; font-size: 14px; }
+.live-split strong { font-size: 16px; letter-spacing: -.4px; }
+.room-cards { display: flex; flex-direction: column; gap: 14px; }
+.person-names { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; margin-top: 18px; }
+.person-names:has(> :only-child) { grid-template-columns: 1fr; max-width: 320px; }
+.optional-tag { color: var(--muted); font-weight: 400; }
+.factor-hint { display: block; margin-top: 7px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+.factor-hint:empty { display: none; }
+.person-shares { margin-top: 8px; }
+.room-share { padding: 8px 0 14px; border-top: 1px solid var(--line); }
+.room-share:first-child { border-top: 0; }
+.person-share { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 4px 18px; padding: 12px 0 4px; }
+.person-share-copy { flex: 1; min-width: 0; }
+.person-share h3 { font-size: 16px; letter-spacing: -.3px; }
+.person-room, .person-reason { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.person-reason { flex-basis: 100%; margin-top: 2px; }
+.person-amount { flex-shrink: 0; text-align: right; }
+.person-amount strong { display: block; font-size: 28px; letter-spacing: -.7px; line-height: 1.1; }
+.person-amount small { color: var(--muted); font-size: 11px; }
+.room-total, .result-total, .move-in-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.room-total { margin-top: 6px; color: var(--muted); font-size: 12px; }
+.room-total strong { color: var(--ink); font-weight: 500; }
+.result-total { margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; }
+.result-total strong { font-size: 18px; letter-spacing: -.4px; }
+.move-in-block { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.move-in-block h3 { font-size: 15px; }
+.move-in-block > p { margin-top: 12px; color: var(--muted); font-size: 12px; }
+.move-in-results small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
+.text-modal textarea { width: 100%; min-height: 150px; margin-top: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; resize: vertical; }
+.room-step-actions { margin-top: 23px; border-top: 0; padding-top: 0; }
+
+.result-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+.result-heading > p { color: var(--muted); font-size: 11px; }
+.result-heading > p > span { margin: 0 5px; }
+.calculator-wizard .result-table { margin-top: 26px; }
+.calculator-wizard .result-table th:first-child { width: 39%; }
+.calculator-wizard .result-table th:nth-child(2) { width: 28%; }
+.calculator-wizard .result-table th:last-child { width: 33%; }
+.calculator-wizard .result-table thead th { font-size: 11px; }
+.calculator-wizard .result-table tbody th { font-size: 13px; }
+.calculator-wizard .result-table tbody th > small,
+.calculator-wizard .result-table td > small { display: block; color: var(--muted); font-size: 10px; font-weight: 400; margin-top: 5px; }
+.calculator-wizard .result-table td strong { font-size: 20px; letter-spacing: -.6px; }
+.calculator-wizard .result-table tfoot td,
+.calculator-wizard .result-table tfoot th { font-size: 13px; padding-top: 20px; }
+.result-bills-note { margin: 0 0 24px; color: var(--muted); font-size: 11px; }
+.calculator-wizard .math-details { border-bottom: 0; padding: 0; margin-top: 0; }
+.calculator-wizard .math-details > p { margin-top: 0; margin-bottom: 16px; font-size: 11px; }
+.move-in-results { display: flex; flex-direction: column; gap: 12px; margin: 2px 0 17px; }
+.move-in-results > div { display: flex; align-items: center; justify-content: space-between; gap: 20px; font-size: 12px; }
+.calculator-wizard .share-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 25px; }
+.calculator-wizard .share-actions .button { font-size: 12px; min-height: 46px; }
+.split-result > .fine-print { margin-top: 12px; font-size: 10px; }
+.split-result > .wizard-actions { margin-top: 25px; }
+
+@media (max-width: 600px) {
+  .calculator-wizard { padding-top: 25px; }
+  .calculator-wizard .calculator-intro { margin-top: 21px; }
+  .calculator-wizard .calculator-intro h1 { font-size: 28px; }
+  .calculator-wizard .calculator-intro > p { font-size: 13px; }
+  .wizard-card { padding: 23px 21px; }
+  .wizard-card h2 { font-size: 18px; }
+  .rent-questions { grid-template-columns: 1fr; gap: 21px; margin-top: 23px; }
+  .rent-questions .bedroom-field { max-width: 100%; }
+  .calculator-wizard .field > input,
+  .calculator-wizard .field > select,
+  .calculator-wizard .currency-input input { font-size: 16px; }
+  .rent-questions .currency-input input { font-size: 27px; }
+  .wizard-field-grid { gap: 17px 12px; }
+  .wizard-field-grid .field > span { font-size: 11px; }
+  .wizard-progress { margin-bottom: 22px; }
+  .wizard-progress button { font-size: 11px; gap: 7px; padding-left: 2px; padding-right: 3px; }
+  .wizard-progress button > span { width: 22px; height: 22px; font-size: 10px; }
+  .wizard-actions .button { font-size: 12px; padding: 11px 16px; }
+  .wizard-autosave { font-size: 8px; }
+  .room-step-heading { gap: 13px; }
+  .room-step-heading > p { font-size: 11px; }
+  .split-choice { width: 100%; }
+  .split-choice .choice { flex: 1; min-height: 36px; font-size: 12px; }
+  .size-options { gap: 8px; }
+  .choice { font-size: 12px; padding: 11px 8px; }
+  .occupant-field { max-width: 100%; }
+  .person-names, .person-names:has(> :only-child) { grid-template-columns: 1fr; max-width: none; }
+  .person-amount strong { font-size: 24px; }
+  .result-heading { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .calculator-wizard .result-table td strong { font-size: 17px; }
+  .calculator-wizard .result-table tbody th { font-size: 12px; }
+  .calculator-wizard .result-table tbody th > small,
+  .calculator-wizard .result-table td > small { font-size: 9px; }
+  .calculator-wizard .result-table thead th { font-size: 10px; }
+  .calculator-wizard .result-table tfoot td,
+  .calculator-wizard .result-table tfoot th { font-size: 11px; }
+  .calculator-wizard .share-actions { flex-direction: column; }
+}
+
+@media (max-width: 360px) {
+  .wizard-card { padding: 21px 17px; }
+  .wizard-actions { gap: 10px; }
+  .wizard-actions .button { font-size: 11px; padding: 11px 13px; }
+  .wizard-actions .text-button { font-size: 11px; }
+  .calculator-wizard details > summary { font-size: 11px; gap: 9px; }
+  .calculator-wizard details > summary > span { font-size: 9px; }
+  .calculator-wizard .result-table td strong { font-size: 14px; }
+  .calculator-wizard .result-table thead th { font-size: 9px; }
+  .calculator-wizard .result-table tfoot td,
+  .calculator-wizard .result-table tfoot th { font-size: 10px; }
+}
+
+@media print {
+  .wizard-progress, .wizard-actions, .wizard-bottom, .share-actions { display: none !important; }
+  .wizard-card { border: 0; padding: 0; }
+}

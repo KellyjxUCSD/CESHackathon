@@ -1,0 +1,12 @@
+{
+  "name": "rentwise",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check app.js && node --check calculator.js && node --check calculator-view.js && node --check apartments.js && node --check explore-view.js && node --check rents.mjs && node --check server.mjs"
+  }
+}

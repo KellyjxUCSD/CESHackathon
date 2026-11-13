@@ -1,0 +1,69 @@
+.map-section { margin-bottom: 28px; }
+.apartment-map { height: 420px; border: 1px solid var(--line); border-radius: 14px; background: var(--fill); overflow: hidden; }
+.map-fallback { display: grid; place-items: center; height: 100%; margin: 0; padding: 24px; color: var(--muted); text-align: center; }
+.map-bar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 12px; }
+.map-bar p { color: var(--muted); font-size: 15px; }
+.map-bar .button { min-height: 44px; padding: 10px 16px; font-size: 15px; }
+.explore-page .page-intro { padding-bottom: 22px; }
+.explore-page .filter-chip { font-size: 15px; min-height: 42px; padding: 8px 14px; }
+.explore-page .search-bar input { font-size: 16px; }
+.explore-page #results-count { font-size: 15px; }
+.explore-page .button { font-size: 15px; min-height: 44px; }
+.place-list { display: flex; flex-direction: column; gap: 12px; }
+.place-card { display: flex; flex-direction: column; align-items: stretch; padding: 12px 14px 6px; border: 1px solid var(--line); border-radius: 12px; background: white; }
+.place-card:hover { border-color: #c5ccd6; }
+.place-open { display: grid; grid-template-columns: 128px minmax(0, 1fr) auto; gap: 14px; align-items: center; width: 100%; padding: 4px; background: transparent; text-align: left; border-radius: 8px; }
+.place-open:hover .place-copy strong { text-decoration: underline; text-underline-offset: 3px; }
+.place-photo-wrap { position: relative; width: 128px; height: 88px; }
+.place-photo { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: block; background: var(--fill); }
+.place-photo-fallback { display: grid; place-items: center; color: var(--ink); font-size: 22px; font-weight: 650; }
+.place-index { position: absolute; left: 6px; top: 6px; display: grid; place-items: center; width: 26px; height: 26px; border: 1.5px solid var(--ink); border-radius: 50%; background: white; font-size: 13px; font-weight: 650; }
+.place-copy, .rent-action { display: flex; flex-direction: column; min-width: 0; }
+.place-copy strong, .place-price strong { letter-spacing: -.3px; }
+.place-copy strong { font-size: 17px; }
+.place-meta, .place-address, .place-source, .place-kicker, .rent-from, .place-loading { color: var(--muted); }
+.place-meta, .place-kicker { font-size: 14px; }
+.place-price { text-align: right; }
+.place-price strong { display: block; font-size: 20px; letter-spacing: -.4px; }
+.place-price span { color: var(--muted); font-size: 14px; }
+.place-website { align-self: flex-start; margin: 4px 0 6px 146px; padding: 8px 0; min-height: 40px; color: var(--ink); font-size: 15px; font-weight: 550; text-decoration: underline; text-underline-offset: 3px; }
+.place-website:hover { color: #293244; }
+.place-detail { padding: 8px 0 40px; }
+.place-hero { width: 100%; height: 280px; object-fit: cover; border-radius: 12px; margin-bottom: 16px; background: var(--fill); }
+.place-detail h1 { font-size: 32px; letter-spacing: -1px; margin-top: 4px; }
+.place-address { margin-top: 6px; }
+.place-source { margin-top: 14px; max-width: 62ch; }
+.place-loading { margin-top: 22px; }
+.place-detail .button { margin-top: 14px; }
+.rent-group { margin-top: 26px; }
+.rent-group h2 { font-size: 18px; letter-spacing: -.4px; }
+.rent-from { margin-top: 2px; font-size: 15px; }
+.explore-page .back-link { font-size: 15px; }
+.rent-group ul { list-style: none; margin: 12px 0 0; padding: 0; }
+.rent-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; padding: 14px 0; border-top: 1px solid var(--line); }
+.rent-row > div:first-child { min-width: 0; }
+.rent-row > div:first-child strong { display: block; font-size: 15px; }
+.rent-action { align-items: flex-end; text-align: right; flex-shrink: 0; }
+.rent-action strong { font-size: 20px; letter-spacing: -.4px; }
+.split-button { margin-top: 8px; padding: 8px 14px; }
+.place-site { margin-top: 28px; }
+.place-site .place-website { margin-left: 0; }
+.place-missing { padding: 48px 0; }
+.place-missing h1 { font-size: 28px; letter-spacing: -.8px; }
+
+@media (max-width: 700px) {
+  .apartment-map { height: 320px; }
+  .place-detail h1 { font-size: 28px; }
+}
+
+@media (max-width: 520px) {
+  .apartment-map { height: 260px; }
+  .map-bar { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .place-hero { height: 200px; }
+  .place-open { grid-template-columns: 96px minmax(0, 1fr); }
+  .place-photo-wrap { width: 96px; height: 72px; }
+  .place-price { grid-column: 2; text-align: left; }
+  .place-website { margin-left: 0; }
+  .rent-row { flex-direction: column; gap: 8px; }
+  .rent-action { align-items: flex-start; text-align: left; }
+}
