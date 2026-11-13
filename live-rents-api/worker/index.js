@@ -35,6 +35,8 @@ const plan = fields => ({
   high: money(fields.high) || money(fields.low),
   available: Number.isFinite(fields.available) ? fields.available : null,
   deposit: money(fields.deposit),
+  image: typeof fields.image === 'string' ? fields.image : null,
+  url: typeof fields.url === 'string' ? fields.url : null,
 });
 const headers = { accept: 'text/html,application/json', 'user-agent': 'Mozilla/5.0 (compatible; Rentwise/1.0; +https://rentwise-ces-hackathon.russetpistachio8.chatgpt.site)' };
 
@@ -52,14 +54,25 @@ async function readJson(url, options = {}) {
   if (!response.ok) throw new Error(`Price source returned ${response.status}`);
   return response.json();
 }
-function parseJonah(html) {
+function parseJonah(html, pageUrl) {
   const match = html.match(/<script type="application\/json" id="jd-fp-data-script-app">([\s\S]*?)<\/script>/);
   if (!match) return null;
   const data = JSON.parse(match[1]);
   return (data.floorplans || []).map(item => {
     const price = item.price_entity || {};
-    return plan({ name: item.title, beds: item.bedrooms === 'Studio' ? 0 : Number(item.bedrooms), baths: Number(item.bathrooms), sqft: Number(String(item.square_feet || '').replace(/,/g, '')), low: price.priceLow || item.rent_min, high: price.priceHigh || item.rent_max, available: Number(item.availability_count) });
+    return plan({ name: item.title, beds: item.bedrooms === 'Studio' ? 0 : Number(item.bedrooms), baths: Number(item.bathrooms), sqft: Number(String(item.square_feet || '').replace(/,/g, '')), low: price.priceLow || item.rent_min, high: price.priceHigh || item.rent_max, available: Number(item.availability_count), url: item.slug ? new URL(`${item.slug}/`, pageUrl).href : null });
   });
+}
+async function addJonahImages(plans = []) {
+  await Promise.all(plans.map(async item => {
+    if (!item.url) return;
+    try {
+      const page = await readText(item.url);
+      const image = page.match(/https?:\\?\/\\?\/[^"]+?(?:Listing|Detail)[^"]+?\.jpg/i)?.[0];
+      if (image) item.image = image.replaceAll('\\/', '/');
+    } catch { /* A plan remains usable when its image is unavailable. */ }
+  }));
+  return plans;
 }
 function parseRealpage(data) {
   const list = data?.response?.floorplans;
@@ -94,7 +107,7 @@ async function scrape(place) {
   const page = await readText(place.website);
   if (/Just a moment|cf-browser-verification|Attention Required/i.test(page.slice(0, 2500))) throw new Error('The property site requires a browser check.');
   let plans = null;
-  if (place.kind === 'jonah') plans = parseJonah(page);
+  if (place.kind === 'jonah') plans = await addJonahImages(parseJonah(page, place.website));
   if (place.kind === 'realpage') {
     const propertyId = page.match(/propertyId\s*=\s*'(\d+)'/)?.[1];
     const apiKey = page.match(/apiKey:\s*'([0-9a-f-]{36})'/i)?.[1];

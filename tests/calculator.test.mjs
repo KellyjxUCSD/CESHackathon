@@ -178,7 +178,7 @@ test('room settings validate and round-trip in share links', () => {
   assert.ok(Number.isFinite(calculate(bad).monthly));
 });
 
-test('displayed dollars add up and each amount says why', () => {
+test('displayed cents add up and each amount says why', () => {
   const plan = newPlan();
   plan.rent = 3600;
   plan.roommates[0].area = 180;
@@ -194,7 +194,7 @@ test('displayed dollars add up and each amount says why', () => {
   assert.match(shares.people[1].reason, /Smaller room/);
   assert.match(shares.people[1].reason, /Two people share the common area/);
   assert.equal(shares.people.reduce((sum, person) => sum + person.monthlyDollars, 0), shares.totalMonthly);
-  assert.equal(shares.totalMonthly, Math.round(calculate(plan).monthly / 100));
+  assert.equal(shares.totalMonthly, calculate(plan).monthly / 100);
   assert.equal(shares.people.reduce((sum, person) => sum + person.moveInDollars, 0), shares.totalMoveIn);
   assert.match(featureHint(plan, 0, 'bath'), /Private bath · about \+\$/);
   assert.equal(featureHint(plan, 1, 'bath'), '');
@@ -218,7 +218,7 @@ test('a floor plan keeps its bedroom count, and the csv shows the weight math', 
   assert.match(text, /Final cents/);
   assert.match(text, /150000/);
   assert.match(text, /250000/);
-  assert.match(text, /Shown dollars add up to \$4,000/);
+  assert.match(text, /Shown amounts add up to \$4,000\.00/);
   const result = calculate(plan);
   assert.equal(result.people[0].rent + result.people[1].rent, result.rent);
 });

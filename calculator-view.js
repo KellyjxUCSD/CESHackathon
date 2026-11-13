@@ -1,4 +1,4 @@
-import { allocateCents, calculate } from './calculator.js';
+import { calculate } from './calculator.js';
 
 const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const money = cents => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 }).format(cents / 100);
@@ -27,12 +27,6 @@ const currency = (plan, key, label, { required = false, placeholder = '0', blank
   return `<label class="field"><span>${label}</span><div class="currency-input"><span aria-hidden="true">$</span><input type="number" data-money="${key}" min="0" max="1000000" step="0.01" ${required ? 'required' : ''} inputmode="decimal" placeholder="${placeholder}" value="${value}" aria-label="${label}" /></div></label>`;
 };
 const choice = (name, value, label, checked) => `<label class="choice ${checked ? 'selected' : ''}"><input type="radio" name="${name}" value="${value}" ${checked ? 'checked' : ''} /><span>${label}</span></label>`;
-
-function dollarShares(centsList) {
-  const totalCents = centsList.reduce((sum, cents) => sum + cents, 0);
-  if (!totalCents) return centsList.map(() => 0);
-  return allocateCents(Math.round(totalCents / 100), centsList);
-}
 
 function joinParts(parts) {
   const [first, ...rest] = parts;
@@ -90,9 +84,11 @@ export function presentedShares(plan) {
       });
     });
   });
-  const monthlyDollars = dollarShares(monthlyCents);
-  const moveInDollars = dollarShares(moveCents);
-  const people = meta.map((person, index) => ({ ...person, monthlyDollars: monthlyDollars[index], moveInDollars: moveInDollars[index] }));
+  const people = meta.map((person, index) => ({
+    ...person,
+    monthlyDollars: monthlyCents[index] / 100,
+    moveInDollars: moveCents[index] / 100,
+  }));
   let cursor = 0;
   const groups = result.people.map(room => {
     const members = people.slice(cursor, cursor + room.occupants);
@@ -243,7 +239,7 @@ function resultStep(plan) {
     <p class="result-total"><span>Total / month</span><strong>${money(shares.totalMonthly * 100)}</strong></p>
     ${shares.extras ? `<p class="result-bills-note">Includes ${money(shares.extras)} in monthly bills, split equally per person.</p>` : ''}
     <section class="move-in-block"><div class="move-in-heading"><h3>Move-in costs</h3><strong>${money(shares.totalMoveIn * 100)}</strong></div>${shares.totalMoveIn ? `<div class="move-in-results">${shares.people.map(person => `<div><span>${escape(person.label)}${person.showRoom ? `<small>${escape(person.roomName)}</small>` : ''}</span><strong>${money(person.moveInDollars * 100)}</strong></div>`).join('')}</div><p>${moveNote}</p>` : '<p>No deposit or fees yet. Add them with rent and bills if you want a move-in total.</p>'}</section>
-    <details class="math-details"><summary>How is this split calculated? <span aria-hidden="true">⌄</span></summary><p>${plan.method === 'equal' ? 'Rent is divided equally per person.' : plan.method === 'size' ? 'Half the rent is split equally between rooms; half follows room size.' : `${commonPercent}% of the rent is shared equally per person for common spaces. The rest follows room size, with small adjustments for the bathroom, windows, and closet.`} Bills and fees are divided equally per person. The deposit follows the rent split.</p>${plan.method === 'rooms' ? '<p>Room adjustments: no windows −10%, large windows +5%; no closet −5%, large closet +8%; private half bath +6%, private full bath +12%. These multiply the room’s size before the split.</p>' : ''}<p>The amounts above are rounded to the nearest dollar and adjusted so they still add up. This is a starting point. Agree on the final amounts together.</p></details>
+    <details class="math-details"><summary>How is this split calculated? <span aria-hidden="true">⌄</span></summary><p>${plan.method === 'equal' ? 'Rent is divided equally per person.' : plan.method === 'size' ? 'Half the rent is split equally between rooms; half follows room size.' : `${commonPercent}% of the rent is shared equally per person for common spaces. The rest follows room size, with small adjustments for the bathroom, windows, and closet.`} Bills and fees are divided equally per person. The deposit follows the rent split.</p>${plan.method === 'rooms' ? '<p>Room adjustments: no windows −10%, large windows +5%; no closet −5%, large closet +8%; private half bath +6%, private full bath +12%. These multiply the room’s size before the split.</p>' : ''}<p>Amounts are shown to the cent and always add up exactly. When a total cannot split into identical cents, one person may be one cent higher.</p></details>
     <div class="share-actions"><button class="button button-primary" type="button" data-summary>Copy summary</button><button class="button button-outline" type="button" data-share>Copy share link</button><button class="button button-outline" type="button" data-download>Download breakdown</button></div><p class="fine-print">Anyone with the link can view this plan. The summary is the message for your group chat.</p>
     <div class="wizard-actions"><button class="text-button" type="button" data-step="2">Edit rooms</button><button class="text-button" type="button" data-step="1">Edit rent & bills</button></div>
   </section>`;

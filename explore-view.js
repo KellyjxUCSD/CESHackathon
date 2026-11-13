@@ -120,7 +120,8 @@ export function placePage(place, result, here) {
         const action = item.low
           ? `<button class="button button-outline split-button" type="button" data-split="${escape(place.id)}" data-rent="${item.low}" data-beds="${item.beds || 1}" data-plan="${escape(item.name)}">Split ${money(item.low)}</button>`
           : '<span class="place-meta">No price listed</span>';
-        return `<li class="rent-row"><div><strong>${escape(item.name)}</strong><span class="place-meta">${escape(planFacts(item))}</span></div><div class="rent-action"><strong>${shown || 'Ask them'}</strong>${action}</div></li>`;
+        const picture = item.image ? `<a class="floorplan-picture" href="${escape(item.url || item.image)}" target="_blank" rel="noreferrer"><img src="${escape(item.image)}" alt="${escape(item.name)} floor plan" /></a>` : '';
+        return `<li class="rent-row">${picture}<div><strong>${escape(item.name)}</strong><span class="place-meta">${escape(planFacts(item))}</span></div><div class="rent-action"><strong>${shown || 'Ask them'}</strong>${action}</div></li>`;
       }).join('');
       return `<section class="rent-group"><h2>${layoutLabel(group.beds, group.baths)}</h2><p class="rent-from">${from}</p><ul>${rows}</ul></section>`;
     }).join('');

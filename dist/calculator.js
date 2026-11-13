@@ -173,8 +173,8 @@ export function breakdownRows(value) {
   result.people.forEach((room, index) => {
     room.residents.forEach((person, slot) => people.push({ label: personLabel(plan, room, index, slot), room, person }));
   });
-  const shownMonthly = allocateCents(Math.round(result.monthly / 100), people.map(item => item.person.monthly));
-  const shownMoveIn = allocateCents(Math.round(result.moveIn / 100), people.map(item => item.person.moveIn));
+  const shownMonthly = people.map(item => item.person.monthly);
+  const shownMoveIn = people.map(item => item.person.moveIn);
   const methodName = trace.method === 'equal' ? 'Everyone pays the same' : trace.method === 'size' ? 'Half equal, half by room size' : 'By room size and features';
   const rows = [];
 
@@ -183,9 +183,9 @@ export function breakdownRows(value) {
   rows.push([]);
   rows.push(['The answer']);
   rows.push(['Person', 'Each month', 'At move-in']);
-  people.forEach((item, index) => rows.push([item.label, money(shownMonthly[index] * 100), money(shownMoveIn[index] * 100)]));
-  rows.push(['Everyone together', money(shownMonthly.reduce((sum, amount) => sum + amount, 0) * 100), money(shownMoveIn.reduce((sum, amount) => sum + amount, 0) * 100)]);
-  rows.push(['These are the same whole dollars shown on the page.']);
+  people.forEach((item, index) => rows.push([item.label, money(shownMonthly[index]), money(shownMoveIn[index])]));
+  rows.push(['Everyone together', money(shownMonthly.reduce((sum, amount) => sum + amount, 0)), money(shownMoveIn.reduce((sum, amount) => sum + amount, 0))]);
+  rows.push(['These are the exact cents shown on the page.']);
   rows.push([]);
 
   rows.push(['What we started with']);
@@ -285,12 +285,12 @@ export function breakdownRows(value) {
   ]));
   rows.push([]);
 
-  rows.push(['Step 6', 'Why the page shows whole dollars']);
-  rows.push(['In plain words', 'The page rounds the household total to the nearest dollar, then hands out those dollars using the same shares. The dollars still add up.']);
-  rows.push(['Exact monthly total', money(result.monthly), 'Nearest dollar', `$${Math.round(result.monthly / 100).toLocaleString('en-US')}`]);
+  rows.push(['Step 6', 'Why the page shows cents']);
+  rows.push(['In plain words', 'The page keeps the exact cents from the split, so the displayed amounts always add up to the household total.']);
+  rows.push(['Exact monthly total', money(result.monthly)]);
   rows.push(['Person', 'Exact monthly amount', 'Shown on the page']);
-  people.forEach((item, index) => rows.push([item.label, money(item.person.monthly), money(shownMonthly[index] * 100)]));
-  rows.push(['Shown dollars add up to', `$${shownMonthly.reduce((sum, amount) => sum + amount, 0).toLocaleString('en-US')}`]);
+  people.forEach((item, index) => rows.push([item.label, money(item.person.monthly), money(shownMonthly[index]) ]));
+  rows.push(['Shown amounts add up to', money(shownMonthly.reduce((sum, amount) => sum + amount, 0))]);
   return rows;
 }
 

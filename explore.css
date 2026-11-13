@@ -43,6 +43,8 @@
 .explore-page .back-link { font-size: 15px; }
 .rent-group ul { list-style: none; margin: 12px 0 0; padding: 0; }
 .rent-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; padding: 14px 0; border-top: 1px solid var(--line); }
+.floorplan-picture { display: block; flex: 0 0 96px; width: 96px; height: 72px; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: white; }
+.floorplan-picture img { width: 100%; height: 100%; object-fit: contain; }
 .rent-row > div:first-child { min-width: 0; }
 .rent-row > div:first-child strong { display: block; font-size: 15px; }
 .rent-action { align-items: flex-end; text-align: right; flex-shrink: 0; }
