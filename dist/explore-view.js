@@ -9,6 +9,11 @@ export function bedLabel(beds) {
   return `${beds} bedrooms`;
 }
 
+function layoutLabel(beds, baths) {
+  if (beds === 0) return baths ? `Studio · 0b${baths}b` : 'Studio';
+  return baths ? `${beds}b${baths}b` : bedLabel(beds);
+}
+
 export function startingRent(result) {
   const prices = (result?.plans || []).map(item => item.low).filter(price => price > 0);
   return prices.length ? Math.min(...prices) : null;
@@ -102,13 +107,14 @@ export function placePage(place, result, here) {
   } else if (result?.plans) {
     const groups = new Map();
     for (const item of result.plans) {
-      if (!groups.has(item.beds)) groups.set(item.beds, []);
-      groups.get(item.beds).push(item);
+      const key = `${item.beds}|${item.baths ?? ''}`;
+      if (!groups.has(key)) groups.set(key, { beds: item.beds, baths: item.baths, items: [] });
+      groups.get(key).items.push(item);
     }
-    body = [...groups.keys()].sort((a, b) => a - b).map(beds => {
-      const items = groups.get(beds).slice().sort((a, b) => (a.low || Infinity) - (b.low || Infinity));
+    body = [...groups.values()].sort((a, b) => a.beds - b.beds || (a.baths || 0) - (b.baths || 0)).map(group => {
+      const items = group.items.slice().sort((a, b) => (a.low || Infinity) - (b.low || Infinity));
       const priced = items.map(item => item.low).filter(Boolean);
-    const from = priced.length ? `Starts at ${money(Math.min(...priced))} a month` : 'Ask them for the price';
+      const from = priced.length ? `Starts at ${money(Math.min(...priced))} a month` : 'Ask them for the price';
       const rows = items.map(item => {
         const shown = priceText(item.low, item.high);
         const action = item.low
@@ -116,7 +122,7 @@ export function placePage(place, result, here) {
           : '<span class="place-meta">No price listed</span>';
         return `<li class="rent-row"><div><strong>${escape(item.name)}</strong><span class="place-meta">${escape(planFacts(item))}</span></div><div class="rent-action"><strong>${shown || 'Ask them'}</strong>${action}</div></li>`;
       }).join('');
-      return `<section class="rent-group"><h2>${bedLabel(beds)}</h2><p class="rent-from">${from}</p><ul>${rows}</ul></section>`;
+      return `<section class="rent-group"><h2>${layoutLabel(group.beds, group.baths)}</h2><p class="rent-from">${from}</p><ul>${rows}</ul></section>`;
     }).join('');
   }
   return `<a class="back-link" href="#/explore"><span aria-hidden="true">←</span> All apartments</a>
