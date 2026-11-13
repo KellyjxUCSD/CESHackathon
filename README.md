@@ -1,27 +1,49 @@
 # Rentwise
 
-A working, browser-local MVP for exploring example apartments near UC San Diego and splitting household costs.
+Explore apartments around La Jolla and UC San Diego, then split rent and bills between roommates.
 
-## Preview
+## Run locally
 
-Requires Node.js 18 or newer. No installation or API keys needed.
+Requires Node.js 18 or newer. No dependency installation is needed.
 
 ```sh
 npm run dev
 ```
 
-Open **http://localhost:5173**. To choose another port: `PORT=3000 npm run dev`.
+Open **http://localhost:5173**. Use `PORT=3000 npm run dev` to choose another port.
 
-## Try the full flow
+The server reads optional settings from the root `.env` file. `GOOGLE_MAPS_API_KEY` enables the Google Maps view. Keep `.env` local; it is ignored by Git.
 
-1. Search the three example apartments or use the bedroom, price, and trolley filters.
-2. Use the bookmark to save an apartment. Open **All filters → Saved apartments only** to see saved places. Sorting is also in All filters.
-3. Click **Calculate rent split** on an apartment, or open **Calculator** for your own rent.
-4. Enter monthly rent and choose one to six bedrooms. Bills, deposits, and fees are under **Bills & move-in costs**.
-5. Click **Next: rooms**. Set each room's size, name, and number of occupants. Bathroom, windows, closet, and exact area are optional. Use **Equally per person** for an equal split.
-6. Click **Next room**, then **Show rent split**. Review monthly rent and bills, share a link, or download the breakdown.
+## Repository layout
 
-Saved places and your current calculation persist in local storage. Share links contain a snapshot, so a recipient can open and edit their own copy. For sharing across devices, host the static files at an accessible URL; a localhost link only works on the same computer.
+```text
+public/
+  index.html          App entry page
+  js/                 Browser modules, apartment data, and rent calculations
+  css/                Shared, welcome, explore, and calculator styles
+  assets/             Images and favicon used by the app
+server/
+  index.mjs           Local server and API routes
+  rents.mjs           Property website parsers and rent fetching
+roommate-split/
+  ...                 Bundled floor-plan readers; old URL redirects to Calculator
+tests/
+  calculator.test.mjs Calculation, sharing, and presentation checks
+  rents.test.mjs      Rent parser and apartment data checks
+docs/
+  design.md           Design principles and references
+```
+
+## Features
+
+- Welcome page with an interactive apartment illustration.
+- Apartment search, map, filters, and property details. Rent data is fetched from property websites when supported; availability depends on those sources.
+- Rent splitting by room size and features, or equally per person. Shared rooms, bills, deposits, and application fees are supported.
+- Local browser storage, shareable plan links, and CSV downloads.
+
+The rent calculator uses Rentwise's own room-weighting model. Its explanation is available with the results. Shares are allocated in whole cents so room and household totals reconcile.
+
+Share links contain a snapshot of the plan, including names and amounts. Localhost links work only on the same computer; cross-device sharing requires hosting the app at an accessible address.
 
 ## Floor plans and roommate splits
 
@@ -67,24 +89,11 @@ OCR results before continuing, especially small or unclear printed dimensions.
   their rooms uses the new room-adjusted formula. The original size/common-space
   models remain available for interpreting older share links.
 
-## Checks
+## Verify changes
 
 ```sh
 npm run check
 npm test
 ```
 
-## MVP boundaries
-
-Listings, prices, amenities, and commute details are sample data from the supplied concept. Photos are illustrative images from Unsplash. This is not a live listing feed. There are no accounts, payments, bookings, or real-time collaboration. Data stays in the browser unless the user copies a share link or downloads a breakdown. Plus Jakarta Sans loads from Google Fonts with a system sans-serif fallback.
-
-## Files
-
-- `index.html`, `styles.css`, `app.js`: interface and browser behavior.
-- `calculator.js`, `roommate-logic.js`: validated room data, rent/bill allocation, and share-link encoding.
-- `floor-plan-upload.js`, `roommate-split/floor-plan.js`: in-calculator uploads and browser-local image/PDF text recognition.
-- `calculator-view.js`, `calculator.css`: the three-step calculator interface.
-- `server.mjs`: dependency-free localhost server that only exposes public app files.
-- `tests/calculator.test.mjs`: money calculations, data validation, and sharing checks.
-- `DESIGN.md`: final product design decisions and original reference.
-- `rentwise_project_export.md`: original page concepts, preserved for reference.
+Serve files through the Node server, rather than opening `index.html` directly, so JavaScript modules and API routes work. Static content is served from `public/`, plus the explicitly allowed `roommate-split/` files. Temporary screenshots and browser-test output belong in the ignored `output/` directory.

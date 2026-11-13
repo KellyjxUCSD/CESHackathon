@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculate, newPlan, normalizePlan, encodePlan, decodePlan, breakdownRows } from '../calculator.js';
+import { calculate, newPlan, normalizePlan, encodePlan, decodePlan, breakdownRows } from '../public/js/calculator.js';
 import { planRooms } from '../roommate-split/floor-plan.js';
-import { presentedShares, calculatorView } from '../calculator-view.js';
+import { presentedShares, calculatorView } from '../public/js/calculator-view.js';
 
 test('new calculations use Roommate Split weights and resident-level cent rounding', () => {
   const plan = newPlan();

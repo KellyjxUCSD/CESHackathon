@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node server.mjs",
-    "start": "node server.mjs",
+    "dev": "node server/index.mjs",
+    "start": "node server/index.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check app.js && node --check calculator.js && node --check calculator-view.js && node --check apartments.js && node --check explore-view.js && node --check rents.mjs && node --check server.mjs && node --check welcome.js && node --check roommate-logic.js && node --check floor-plan-upload.js && node --check roommate-split/floor-plan.js"
+    "check": "node --check public/js/app.js && node --check public/js/calculator.js && node --check public/js/calculator-view.js && node --check public/js/apartments.js && node --check public/js/explore-view.js && node --check public/js/welcome.js && node --check server/rents.mjs && node --check server/index.mjs && node --check public/js/roommate-logic.js && node --check public/js/floor-plan-upload.js && node --check roommate-split/floor-plan.js"
   }
 }

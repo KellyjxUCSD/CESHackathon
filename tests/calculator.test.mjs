@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { allocateCents, breakdownRows, calculate, decodePlan, encodePlan, newPlan, normalizePlan } from '../calculator.js';
-import { featureHint, presentedShares } from '../calculator-view.js';
+import { allocateCents, breakdownRows, calculate, decodePlan, encodePlan, newPlan, normalizePlan } from '../public/js/calculator.js';
+import { featureHint, presentedShares } from '../public/js/calculator-view.js';
 
 const withSampleCosts = plan => Object.assign(plan, {
   rent: 3600, utilities: 150, internet: 60, parking: 100, insurance: 20, deposit: 3600, fee: 50, includeFirst: true,

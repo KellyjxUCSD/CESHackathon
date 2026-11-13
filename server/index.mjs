@@ -3,10 +3,11 @@ import { readFileSync } from 'node:fs';
 import { readFile as readFileAsync } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { apartments } from './apartments.js';
+import { apartments } from '../public/js/apartments.js';
 import { scrapeRents } from './rents.mjs';
 
-const root = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const publicRoot = path.join(root, 'public');
 try {
   for (const line of readFileSync(path.join(root, '.env'), 'utf8').split('\n')) {
     const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
@@ -52,10 +53,10 @@ const server = http.createServer(async (req, res) => {
     const relative = pathname === '/' ? 'index.html' : pathname.slice(1);
     const roommateAsset = /^roommate-split\/(?:index\.html|app\.js|floor-plan\.js|style\.css|vendor\/(?:heic2any\.min\.js|(?:ocr|pdf)\/[\w.-]+\.(?:m?js|wasm|gz)))$/.test(relative);
     // Serve only public app files; never expose repository metadata or source documents.
-    if (!roommateAsset && !['index.html', 'app.js', 'calculator.js', 'calculator-view.js', 'apartments.js', 'explore-view.js', 'welcome.js', 'styles.css', 'calculator.css', 'explore.css', 'welcome.css', 'roommate-logic.js', 'floor-plan-upload.js'].includes(relative) && !/^assets\/[a-zA-Z0-9._-]+$/.test(relative)) {
+    if (!roommateAsset && relative !== 'index.html' && !/^(?:js\/[a-zA-Z0-9_-]+\.js|css\/[a-zA-Z0-9_-]+\.css|assets\/[a-zA-Z0-9._-]+)$/.test(relative)) {
       res.writeHead(404).end('Not found'); return;
     }
-    const file = path.join(root, relative);
+    const file = path.join(roommateAsset ? root : publicRoot, relative);
     const content = await readFileAsync(file);
     res.writeHead(200, { 'Content-Type': `${types[path.extname(file)] || 'application/octet-stream'}; charset=utf-8`, 'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff' });
     res.end(content);

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { apartments, UTC, milesBetween } from '../apartments.js';
-import { parseJonah, parseRealpage, parseG5, parseSchemaOffers, parseFloorplanCards } from '../rents.mjs';
-import { startingRent } from '../explore-view.js';
+import { apartments, UTC, milesBetween } from '../public/js/apartments.js';
+import { parseJonah, parseRealpage, parseG5, parseSchemaOffers, parseFloorplanCards } from '../server/rents.mjs';
+import { startingRent } from '../public/js/explore-view.js';
 
 test('distance from UTC to Palisade is a short trip', () => {
   const miles = milesBetween({ lat: 32.8704, lng: -117.2118 }, { lat: 32.8675832, lng: -117.212176 });

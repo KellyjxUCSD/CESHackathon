@@ -1,4 +1,4 @@
-import { floorPlanText, planRooms } from './roommate-split/floor-plan.js';
+import { floorPlanText, planRooms } from '../../roommate-split/floor-plan.js';
 
 export function createFloorPlanUpload({ getPlan, applyRooms }) {
   const panel = document.createElement('div');
