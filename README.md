@@ -96,4 +96,6 @@ npm run check
 npm test
 ```
 
+For hosting steps, key restrictions, and the release smoke check, see [Deployment](docs/deployment.md). A Render Blueprint is included in `render.yaml`.
+
 Serve files through the Node server, rather than opening `index.html` directly, so JavaScript modules and API routes work. Static content is served from `public/`, plus the explicitly allowed `roommate-split/` files. Temporary screenshots and browser-test output belong in the ignored `output/` directory.

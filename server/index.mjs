@@ -19,6 +19,7 @@ try {
   }
 } catch { /* The map key is optional until .env is present. */ }
 const port = Number(process.env.PORT || 5173);
+const host = process.env.HOST || '0.0.0.0';
 const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.png': 'image/png' };
 types['.mjs'] = 'text/javascript';
 types['.wasm'] = 'application/wasm';
@@ -92,4 +93,4 @@ const server = http.createServer(async (req, res) => {
     res.end(content);
   } catch { res.writeHead(404).end('Not found'); }
 });
-server.listen(port, '127.0.0.1', () => console.log(`TritonRent is ready at http://localhost:${port}`));
+server.listen(port, host, () => console.log(`TritonRent is ready at http://localhost:${port}`));

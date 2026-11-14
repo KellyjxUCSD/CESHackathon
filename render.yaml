@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: tritonrent
+    runtime: node
+    plan: free
+    buildCommand: npm run check && npm test
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeployTrigger: 'off'
